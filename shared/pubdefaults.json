@@ -1,32 +1,68 @@
 {
-  "/scanner/camera_ctrl": {
-    "reply": "/scanner/camera_ctrl_result",
+  "/camera_controller/control": {
     "presets": [
-      { "data": "list" },
-      { "data": "set exposure_auto 1" },
-      { "data": "set exposure_absolute 156" },
-      { "data": "set exposure_auto 3" },
-      { "data": "set exposure_auto_priority 0" },
-      { "data": "set gain 0" },
-      { "data": "set brightness 0" },
-      { "data": "set contrast 32" },
-      { "data": "set saturation 64" },
-      { "data": "set hue 0" },
-      { "data": "set gamma 100" },
-      { "data": "set sharpness 3" },
-      { "data": "set backlight_compensation 0" },
-      { "data": "set power_line_frequency 2" },
-      { "data": "set white_balance_temperature_auto 1" },
-      { "data": "set white_balance_temperature 4600" },
-      { "data": "set focus_auto 1" },
-      { "data": "set focus_absolute 0" },
-      { "data": "set zoom_absolute 100" },
-      { "data": "set pan_absolute 0" },
-      { "data": "set tilt_absolute 0" },
-      { "data": "set privacy 0" },
-      { "data": "set iris_absolute 0" },
-      { "data": "get exposure_absolute" },
-      { "data": "setn exposure_absolute 0.5" }
+      { "label": "list — 현재 붙은 카메라의 제어 항목/현재값 조회", "command": "list" },
+      { "label": "focus — 렌즈 위치 0~1023 (CSI, I2C VCM)", "command": "focus 0" },
+      { "label": "wbmode — 화이트밸런스 (0꺼짐 1자동 2백열등 3형광등 4주광 5흐림 6그늘, 이름도 가능)", "command": "wbmode 1" },
+      { "label": "exposuretimerange — 노출시간 ns, min max (동일값이면 고정)", "command": "exposuretimerange 0 0" },
+      { "label": "gainrange — 아날로그 게인 min max", "command": "gainrange 0 0" },
+      { "label": "ispdigitalgainrange — 디지털 게인 min max", "command": "ispdigitalgainrange 0 0" },
+      { "label": "exposurecompensation — 노출 보정 EV", "command": "exposurecompensation 0" },
+      { "label": "saturation — 채도 (0~2, 기본 1)", "command": "saturation 1" },
+      { "label": "ee-mode — 샤프닝 모드 (0끔 1빠름 2고품질)", "command": "ee-mode 1" },
+      { "label": "ee-strength — 샤프닝 강도 (-1~1)", "command": "ee-strength 0" },
+      { "label": "tnr-mode — 노이즈감소 모드 (0끔 1빠름 2고품질)", "command": "tnr-mode 1" },
+      { "label": "tnr-strength — 노이즈감소 강도 (-1~1)", "command": "tnr-strength 0" },
+      { "label": "aelock — 자동노출 잠금 (0/1)", "command": "aelock 0" },
+      { "label": "awblock — 화이트밸런스 잠금 (0/1)", "command": "awblock 0" },
+      { "label": "aeantibanding — 플리커 제거 (0끔 1자동 2=50Hz 3=60Hz)", "command": "aeantibanding 1" }
+    ]
+  },
+  "/camera_controller/v4l2/control": {
+    "presets": [
+      { "label": "list — 대상 장치의 V4L2 컨트롤/현재값 조회", "command": "list" },
+      { "label": "get — 컨트롤 현재값 조회", "command": "get sustain_framerate" },
+      { "label": "setn — 범위 대비 비율로 설정 (0.0~1.0)", "command": "setn brightness 0.5" },
+
+      { "label": "[루프백] sustain_framerate — 입력 끊겨도 마지막 프레임 유지 (0/1)", "command": "sustain_framerate 0" },
+      { "label": "[루프백] timeout — 입력 없을 때 대기 ms (0=무한)", "command": "timeout 0" },
+      { "label": "[루프백] keep_format — 소비자 종료 후 포맷 유지 (0/1)", "command": "keep_format 0" },
+
+      { "label": "[USB] exposure_auto — 노출 모드 (1수동 3조리개우선)", "command": "exposure_auto 3" },
+      { "label": "[USB] exposure_absolute — 노출시간 100us 단위", "command": "exposure_absolute 156" },
+      { "label": "[USB] gain — 아날로그 게인", "command": "gain 0" },
+      { "label": "[USB] brightness — 밝기", "command": "brightness 0" },
+      { "label": "[USB] contrast — 대비", "command": "contrast 32" },
+      { "label": "[USB] saturation — 채도", "command": "saturation 64" },
+      { "label": "[USB] white_balance_temperature_auto — WB 자동 (0/1)", "command": "white_balance_temperature_auto 1" },
+      { "label": "[USB] white_balance_temperature — WB 색온도 K", "command": "white_balance_temperature 4600" },
+      { "label": "[USB] focus_auto — 오토포커스 (0/1)", "command": "focus_auto 1" },
+      { "label": "[USB] focus_absolute — 초점 위치", "command": "focus_absolute 0" },
+      { "label": "[USB] power_line_frequency — 플리커 (0끔 1=50Hz 2=60Hz)", "command": "power_line_frequency 2" }
+    ]
+  },
+  "/scanner/camera": {
+    "presets": [
+      { "label": "카메라 시작 — 프리셋 자동 선택은 std_scanner_mgr 가 한다", "data": "start /dev/video10" },
+      { "label": "카메라 정지", "data": "stop" }
+    ]
+  },
+  "/scanner/stream": {
+    "presets": [
+      { "label": "스트림 시작 (호스트 포트)", "data": "start 100.88.29.142 55000" },
+      { "label": "스트림 정지", "data": "stop" }
+    ]
+  },
+  "/scanner/scandit": {
+    "presets": [
+      { "label": "바코드 스캔 시작 (세션 test1)", "data": "start test1" },
+      { "label": "바코드 스캔 정지", "data": "stop" }
+    ]
+  },
+  "/scanner/record": {
+    "presets": [
+      { "label": "녹화 시작", "data": "start /home/nvidia/scanner/record/test.mp4" },
+      { "label": "녹화 정지", "data": "stop" }
     ]
   }
 }
