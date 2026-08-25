@@ -1,7 +1,7 @@
 // 조회(one-shot) — 메시지 정의/발행 프리필/연결 정보/TF/파라미터/리소스/백 덤프 등.
 import { Router } from 'express';
 import { flattenSkeleton, buildYaml } from '../../shared/msgform.js';
-import { loadPubDefaults, applyPreset } from '../../shared/pubdefaults.js';
+import { loadPubDefaults, applyPreset, filterByProbe } from '../../shared/pubdefaults.js';
 import { be } from '../ros.js';
 import { runOnce } from '../http.js';
 import { rbRequired, rbEnsure } from '../telemetry.js';
@@ -23,8 +23,14 @@ router.get('/api/proto', async (req, res) => {
     const skel = parsed.skel || {};
     const fields = flattenSkeleton(skel);
     // 프리셋(shared/pubdefaults.js) — TUI 는 values 로 필드를 채우고, 웹은 yaml 을 textarea 에 넣는다.
-    const cfg = loadPubDefaults()[req.query.name] || { presets: [], reply: null };
-    const presets = cfg.presets.map((p) => ({ values: p, yaml: buildYaml(applyPreset(fields, p)) || '{}' }));
+    const cfg = loadPubDefaults()[req.query.name] || { presets: [], reply: null, probe: null };
+    // probe 가 있으면 대상이 실제로 지원하는 항목만 남긴다 — 장치에 따라 컨트롤이 달라지는 서비스용.
+    let list = cfg.presets;
+    if (cfg.probe?.request) {
+      const probeCmd = be.callService(req.query.name, cfg.probe.request);
+      if (probeCmd) list = filterByProbe(list, cfg.probe, await runOnce(probeCmd));
+    }
+    const presets = list.map((p) => ({ values: p, yaml: buildYaml(applyPreset(fields, p)) || '{}' }));
     return res.json({ yaml: buildYaml(fields) || '{}', skel, type: parsed.type || '', presets, reply: cfg.reply });
   } catch {
     return res.json({ yaml: '{}', skel: null, type: '' });

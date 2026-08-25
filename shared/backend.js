@@ -48,6 +48,8 @@ export class Backend {
   paramSet(node, name, val) { return paramSetCmd(node, name, val); }
   setParam1(name, val) { const a = actionFor(this.ver, 'param', name, val); return a && a.cmd; }
   killNode(name) { const a = actionFor(this.ver, 'node', name); return a && a.cmd; }
+  // 프리셋 probe 용 일회성 서비스 호출 — 버전별 분기는 actionFor 가 이미 갖고 있다.
+  callService(name, req) { const a = actionFor(this.ver, 'service', name, req); return a && a.cmd; }
   restartNode(name) { const a = restartFor('node', name); return a && a.cmd; }
   lifecycle(node, transition) { return `ros2 lifecycle set ${shq(node)} ${transition} 2>&1`; }
   actionGoal(name, type, goal) { return `ros2 action send_goal ${shq(name)} ${shq(type)} ${shq(goal)} --feedback 2>&1`; }

@@ -64,6 +64,15 @@
     ]
   },
   "/camera_controller/v4l2/control": {
+    "probe": {
+      "request": "{command: list}",
+      "field": "command",
+      "always": [
+        "list",
+        "get",
+        "setn"
+      ]
+    },
     "presets": [
       {
         "label": "list — 대상 장치의 V4L2 컨트롤/현재값 조회",
