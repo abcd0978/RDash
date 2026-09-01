@@ -4,7 +4,7 @@ import { flattenSkeleton, buildYaml } from '../../shared/msgform.js';
 import { loadPubDefaults, applyPreset, filterByProbe } from '../../shared/pubdefaults.js';
 import { be } from '../ros.js';
 import { runOnce } from '../http.js';
-import { rbRequired, rbEnsure, rbParamGet } from '../telemetry.js';
+import { rbRequired, rbEnsure, rbParamGet, rbProto, rbProbe } from '../telemetry.js';
 
 const router = Router();
 
@@ -16,6 +16,25 @@ router.get('/api/msgdef', async (req, res) => res.json({ out: await runOnce(be.m
 // 웹은 yaml 만 쓰지만(textarea 프리필), TUI 는 필드별 입력 폼을 그리므로 skel 이 필요하다.
 // kind 생략 시 topic(기존 클라이언트 호환) — service 는 그래프 스냅샷에 ty 가 없어 이름으로 타입을 조회한다.
 router.get('/api/proto', async (req, res) => {
+  const is_ros1 = (be.ver !== '2');
+  if (is_ros1) {
+    if (rbRequired(res)) {
+      return;
+    }
+    try {
+      const r = await rbProto(req.query.kind || 'topic', req.query.name, req.query.type);
+      const fields = flattenSkeleton(r.skel);
+      const cfg = loadPubDefaults()[req.query.name] || { presets: [], reply: null, probe: null };
+      let list = cfg.presets;
+      if (cfg.probe?.request) {
+        list = filterByProbe(list, cfg.probe, await rbProbe(req.query.name, cfg.probe.request));
+      }
+      const presets = list.map((p) => ({ values: p, yaml: buildYaml(applyPreset(fields, p)) || '{}' }));
+      return res.json({ yaml: buildYaml(fields) || '{}', skel: r.skel, type: r.type, presets, reply: cfg.reply });
+    } catch {
+      return res.json({ yaml: '{}', skel: null, type: '' });
+    }
+  }
   const cmd = be.proto(req.query.kind || 'topic', req.query.name, req.query.type);
   if (!cmd) return res.json({ yaml: '{}', skel: null, type: '' });
   try {
