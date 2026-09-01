@@ -12,6 +12,7 @@ import { turtle } from './turtle.js';
 import { plotlab } from './plotlab.js';
 import { bookmarks, jobs } from './bookmarks.js';
 import { overlays } from './overlays.js';
+import { rosbridge } from './rosbridge.js';
 
 export const Views = {
   msgdef, qos, connections, tftree,
@@ -23,4 +24,5 @@ export const Views = {
   teleop, states,
   bookmarks, jobs,
   overlays,
+  rosbridge,
 };
