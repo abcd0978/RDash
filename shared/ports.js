@@ -8,11 +8,36 @@
 //
 // 버전마다 포트를 갈라 자동으로 안 부딪히게 한다. env(RDASH_WEB_PORT·RDASH_ROSBRIDGE_URL)가
 // 있으면 그게 우선 — 다른 배치가 필요하면 그걸로 덮는다.
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
 const DEFAULTS = {
   '1': { webPort: 8080, rosbridgeUrl: 'ws://localhost:9090' },
   '2': { webPort: 8082, rosbridgeUrl: 'ws://localhost:9091' },
 };
 const pick = (ver) => DEFAULTS[ver === '2' ? '2' : '1'];
 
+// UI 에서 저장한 원격 rosbridge 대상 — env 보다도 우선한다 (POST /api/rosbridge 참조)
+const URL_FILE = path.join(os.homedir(), '.rdash_rosbridge_url');
+function loadOverride() {
+  try {
+    return fs.readFileSync(URL_FILE, 'utf8').trim();
+  } catch {
+    return '';
+  }
+}
+let urlOverride = loadOverride();
+export const rosbridgeOverride = () => urlOverride;
+export function setRosbridgeOverride(u) {
+  urlOverride = (u || '').trim();
+  const is_cleared = (urlOverride === '');
+  if (is_cleared) {
+    fs.rmSync(URL_FILE, { force: true });
+    return;
+  }
+  fs.writeFileSync(URL_FILE, urlOverride);
+}
+
 export const webPort = (ver) => Number(process.env.RDASH_WEB_PORT) || pick(ver).webPort;
-export const rosbridgeUrl = (ver) => process.env.RDASH_ROSBRIDGE_URL || pick(ver).rosbridgeUrl;
+export const rosbridgeUrl = (ver) => urlOverride || process.env.RDASH_ROSBRIDGE_URL || pick(ver).rosbridgeUrl;
