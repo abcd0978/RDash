@@ -1,5 +1,13 @@
 # RDash
 
+## Quick Start (Windows · 원격 rosbridge)
+
+```
+npm install && run.cmd
+```
+
+→ http://localhost:8080. 대상 rosbridge는 툴바 🔌 rosbridge(단축키 R)에서 IP만 입력하면 된다 (`ws://IP:9090` 으로 저장, 재시작 루프가 자동 반영). Linux 는 `run.cmd` 대신 `sh run.sh`.
+
 A terminal dashboard (TUI) for browsing **ROS topics / services / params / nodes** with live values — for **ROS1 and ROS2**. Built with [React Ink](https://github.com/vadimdemedes/ink).
 
 > **What it's like:** the closest analogue is **rqt** (`rqt_graph` + `rqt_topic` + `rqt_reconfigure` + `rqt_service_caller`) — graph *introspection **and** control* — but in a **single terminal**: headless / SSH-friendly, no X11 or Qt. It ships an optional **browser GUI** (`npm start`) that covers **rqt_graph + PlotJuggler + parts of Foxglove/RViz** territory — node/topic graph, a multi-plot lab, camera/GPS/pointcloud views — and can drive a **remote** robot over rosbridge. See [Web UI](#web-ui-localhost).
