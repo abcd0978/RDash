@@ -4,7 +4,7 @@ import { flattenSkeleton, buildYaml } from '../../shared/msgform.js';
 import { loadPubDefaults, applyPreset, filterByProbe } from '../../shared/pubdefaults.js';
 import { be } from '../ros.js';
 import { runOnce } from '../http.js';
-import { rbRequired, rbEnsure } from '../telemetry.js';
+import { rbRequired, rbEnsure, rbParamGet } from '../telemetry.js';
 
 const router = Router();
 
@@ -77,6 +77,18 @@ router.get('/api/param/list', async (req, res) => {
 
 router.get('/api/param/get1', async (req, res) => {
   const name = req.query.name;
+  const is_ros1 = (be.ver !== '2');
+  if (is_ros1) {
+    if (rbRequired(res)) {
+      return;
+    }
+    let out = '';
+    if (name) {
+      out = await rbParamGet(name);
+    }
+    res.json({ out });
+    return;
+  }
   const cmd = name && be.paramGet1(name);
   res.json({ out: cmd ? (await runOnce(cmd)).trim() : '(ROS2: 노드별 파라미터 — 노드의 params 에서 조회)' });
 });
