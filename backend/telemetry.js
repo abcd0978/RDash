@@ -24,6 +24,32 @@ export async function rbTopicType(topic) {
   return (r && r.type) || '';
 }
 
+// 파라미터 rosapi 경유 — 백엔드 호스트에 ROS CLI 가 없어도(원격 rosbridge) 동작한다
+export async function rbParamGet(name) {
+  const r = await rbEnsure().call('/rosapi/get_param', { name, default: '' });
+  const raw = String((r && r.value) || '');
+  let v;
+  try {
+    v = JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+  const is_plain_string = (typeof v === 'string');
+  if (is_plain_string) {
+    return v;
+  }
+  return JSON.stringify(v);
+}
+export async function rbParamSet(name, value) {
+  let v = String(value);
+  try {
+    JSON.parse(v);
+  } catch {
+    v = JSON.stringify(v);
+  }
+  await rbCmdEnsure().call('/rosapi/set_param', { name, value: v });
+}
+
 // ── 텔레메트리 폴링 싱글톤 — SSE/WS 클라이언트 전원이 폴루프 1개·Hz 구독 하나를 공유(ref-count).
 // muxEnsure/muxAdd(mux.js)와 같은 패턴: 첫 구독자가 폴루프 시작, 마지막이 나가면 정지+구독 전부 해제.
 const telemClients = new Set();      // 구독 중인 send 콜백들
