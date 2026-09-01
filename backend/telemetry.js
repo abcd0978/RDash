@@ -1,5 +1,5 @@
 // rosbridge 클라이언트 · 텔레메트리 폴링 싱글톤 · 그래프 스냅샷 · echo.
-import { RosbridgeClient, msgToYaml } from '../shared/rosbridge.js';
+import { RosbridgeClient, msgToYaml, looseJson } from '../shared/rosbridge.js';
 import { be, VER } from './ros.js';
 import { sse } from './http.js';
 
@@ -48,6 +48,79 @@ export async function rbParamSet(name, value) {
     v = JSON.stringify(v);
   }
   await rbCmdEnsure().call('/rosapi/set_param', { name, value: v });
+}
+
+// 폼 스켈레톤 rosapi 경유 — /rosapi/*_details 의 typedefs 를 기본값 객체로 펼친다
+function fieldDefault(ft, typedefs, depth) {
+  const is_numeric = /^(u?int|float|byte|char|double)/.test(ft);
+  if (is_numeric) {
+    return 0;
+  }
+  const is_bool = (ft === 'bool');
+  if (is_bool) {
+    return false;
+  }
+  const is_string = (ft === 'string');
+  if (is_string) {
+    return '';
+  }
+  return typedefSkel(ft, typedefs, depth + 1);
+}
+function typedefSkel(type, typedefs, depth) {
+  if (depth > 8) {
+    return {};
+  }
+  const is_stamp = (type === 'time' || type === 'duration');
+  if (is_stamp) {
+    return { secs: 0, nsecs: 0 };
+  }
+  const td = typedefs.find((t) => t.type === type);
+  if (!td) {
+    return {};
+  }
+  const obj = {};
+  for (let i = 0; i < td.fieldnames.length; i++) {
+    const is_array = (td.fieldarraylen[i] >= 0);
+    if (is_array) {
+      obj[td.fieldnames[i]] = [];
+      continue;
+    }
+    obj[td.fieldnames[i]] = fieldDefault(td.fieldtypes[i], typedefs, depth);
+  }
+  return obj;
+}
+export async function rbProto(kind, name, type) {
+  const is_service = (kind === 'service');
+  let ty = type || '';
+  if (!ty) {
+    if (is_service) {
+      const r = await rbEnsure().call('/rosapi/service_type', { service: name });
+      ty = (r && r.type) || '';
+    } else {
+      const r = await rbEnsure().call('/rosapi/topic_type', { topic: name });
+      ty = (r && r.type) || '';
+    }
+  }
+  let d;
+  if (is_service) {
+    d = await rbEnsure().call('/rosapi/service_request_details', { type: ty });
+  } else {
+    d = await rbEnsure().call('/rosapi/message_details', { type: ty });
+  }
+  const typedefs = (d && d.typedefs) || [];
+  let skel = {};
+  if (typedefs.length > 0) {
+    skel = typedefSkel(typedefs[0].type, typedefs, 0);
+  }
+  return { skel, type: ty };
+}
+// probe 서비스 콜 — filterByProbe 가 먹는 텍스트로 응답을 펴서 돌려준다
+export async function rbProbe(name, request) {
+  const v = await rbCmdEnsure().call(name, looseJson(request));
+  if (!v) {
+    return '';
+  }
+  return Object.values(v).map(String).join('\n');
 }
 
 // ── 텔레메트리 폴링 싱글톤 — SSE/WS 클라이언트 전원이 폴루프 1개·Hz 구독 하나를 공유(ref-count).
