@@ -105,7 +105,7 @@ export function msgForm(title, url, base, key, protoUrl) {
   if (protoUrl) api(protoUrl).then((r) => {
     if (r && r.yaml && ta.value.trim() === '{}') ta.value = r.yaml;
     if (r && r.presets && r.presets.length) {   // 프리셋(shared/pubdefaults.js) — 첫 항목으로 프리필, select 로 전환
-      for (const p of r.presets) sel.append(el('option', { value: p.yaml }, p.yaml));
+      for (const p of r.presets) sel.append(el('option', { value: p.yaml }, (p.values && p.values.label) || p.yaml));
       sel.style.display = ''; ta.value = r.presets[0].yaml;
     }
     if (r && r.reply) {   // 응답 토픽 — 모달이 떠 있는 동안 구독해 최신 메시지를 아래에 보여준다
