@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { looseJson } from '../../shared/rosbridge.js';
 import { be, cleanRosCmd } from '../ros.js';
 import { runOnce } from '../http.js';
-import { rbCmdRequired, rbCmdEnsure, rbTopicType, setMeasure } from '../telemetry.js';
+import { rbCmdRequired, rbCmdEnsure, rbTopicType, setMeasure, rbParamGet, rbParamSet } from '../telemetry.js';
 import { teleopStop, teleopSet } from '../jobs.js';
 
 const router = Router();
@@ -33,6 +33,15 @@ router.post('/api/service', needRbCmd, async (req, res) => {
 
 router.post('/api/setparam1', async (req, res) => {
   const b = req.body;
+  const is_ros1 = (be.ver !== '2');
+  if (is_ros1) {
+    if (rbCmdRequired(res)) {
+      return;
+    }
+    await rbParamSet(b.name, b.value);
+    res.json({ out: await rbParamGet(b.name) });
+    return;
+  }
   const cmd = be.setParam1(b.name, b.value);
   res.json({ out: cmd ? await runOnce(cmd) : '(ROS2: per-node)' });
 });
