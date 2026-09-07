@@ -5,6 +5,7 @@ import { be, cleanRosCmd } from '../ros.js';
 import { runOnce } from '../http.js';
 import { rbCmdRequired, rbCmdEnsure, rbTopicType, setMeasure, rbParamGet, rbParamSet } from '../telemetry.js';
 import { teleopStop, teleopSet } from '../jobs.js';
+import { killNodeRpc } from '../rosmaster.js';
 
 const router = Router();
 
@@ -15,6 +16,15 @@ router.post('/api/clean-ros', async (req, res) => res.json({ out: await runOnce(
 
 router.post('/api/param/set', async (req, res) => {
   const b = req.body;
+  const is_ros1 = (be.ver !== '2');
+  if (is_ros1) {
+    if (rbCmdRequired(res)) {
+      return;
+    }
+    await rbParamSet(b.name, b.value);
+    res.json({ value: (await rbParamGet(b.name)).trim() });
+    return;
+  }
   await runOnce(be.paramSet(b.node, b.name, b.value));
   res.json({ value: (await runOnce(be.paramGet(b.node, b.name))).trim() });
 });
@@ -48,6 +58,17 @@ router.post('/api/setparam1', async (req, res) => {
 
 router.post('/api/killnode', async (req, res) => {
   const b = req.body;
+  const is_ros1 = (be.ver !== '2');
+  if (is_ros1) {
+    let out;
+    try {
+      out = await killNodeRpc(b.name);
+    } catch (e) {
+      out = `kill 실패: ${e.message}`;
+    }
+    res.json({ out });
+    return;
+  }
   const cmd = be.killNode(b.name);
   res.json({ out: cmd ? await runOnce(cmd) : '(no cmd)' });
 });

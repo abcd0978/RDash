@@ -86,6 +86,18 @@ router.get('/api/tfecho', async (req, res) => res.json({ out: await runOnce(be.t
 router.get('/api/bagcompare', async (req, res) => res.json({ out: await runOnce(be.bagCompare(req.query.a, req.query.b)) }));
 
 router.get('/api/param/list', async (req, res) => {
+  const is_ros1 = (be.ver !== '2');
+  if (is_ros1) {
+    if (rbRequired(res)) {
+      return;
+    }
+    const prefix = String(req.query.node || '').replace(/\/?$/, '/');
+    const o = await rbEnsure().call('/rosapi/get_param_names');
+    const names = ((o && o.names) || []).filter((n) => n.startsWith(prefix)).sort();
+    const rows = await Promise.all(names.map(async (name) => ({ name, value: (await rbParamGet(name)).trim() })));
+    res.json({ rows });
+    return;
+  }
   res.json({
     rows: (await runOnce(be.paramList(req.query.node))).split('\n').filter(Boolean).map((l) => {
       const i = l.indexOf('\t');
