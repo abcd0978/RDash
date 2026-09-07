@@ -22,8 +22,9 @@ export function rtsp() {
 function build() {
   const cfg = Object.assign({ url: 'rtsp://100.88.16.17:8554/scan', presets: [], x: 0, y: 0, w: 420, h: 260, lowLatency: true }, load());
 
-  // ── MSE 재생 엔진 ──
+  // ── MSE 재생 엔진 — 지정한 video 엘리먼트에 스트림을 붙인다(도킹/팝업이 각자 video 소유) ──
   const video = el('video', { autoplay: true, muted: true, playsinline: true, style: 'width:100%;height:100%;background:#000;object-fit:contain;display:block' });
+  let target = video;   // 현재 재생 대상 (도킹 video 또는 팝업 video)
   let stream = null, ms = null, sb = null, queue = [];
   const flush = () => { if (!sb || sb.updating || !queue.length) return; try { sb.appendBuffer(queue.shift()); } catch (_) { queue = []; } };
   const stop = () => {
@@ -31,23 +32,24 @@ function build() {
     try { if (ms && ms.readyState === 'open') ms.endOfStream(); } catch (_) { /* */ }
     sb = null; queue = [];
   };
-  const play = (u) => {
+  const play = (u, vid) => {
     stop();
+    if (vid) target = vid;
     u = (u || cfg.url || '').trim();
     if (!u) { toast('RTSP 주소를 입력하세요', 'err'); return; }
     cfg.url = u; save(cfg);
     setStatus('연결 중…');
     ms = new MediaSource();
-    video.src = URL.createObjectURL(ms);
+    target.src = URL.createObjectURL(ms);
     ms.addEventListener('sourceopen', () => {
       try { sb = ms.addSourceBuffer('video/mp4; codecs="avc1.42E01F"'); } catch (e) { setStatus('코덱 오류: ' + e.message); return; }
       sb.mode = 'sequence';
       sb.addEventListener('updateend', () => {
         flush();
         // 저지연 — 라이브 끝단으로 계속 따라붙어 버퍼 누적 방지
-        if (cfg.lowLatency && video.buffered.length) {
-          const end = video.buffered.end(video.buffered.length - 1);
-          if (end - video.currentTime > 1.0) video.currentTime = end - 0.3;
+        if (cfg.lowLatency && target.buffered.length) {
+          const end = target.buffered.end(target.buffered.length - 1);
+          if (end - target.currentTime > 1.0) target.currentTime = end - 0.3;
         }
       });
       let first = true;
@@ -58,7 +60,7 @@ function build() {
         flush();
       });
     }, { once: true });
-    video.play().catch(() => {});
+    target.play().catch(() => {});
   };
 
   // ── 헤더 (드래그 핸들 + 버튼) ──
@@ -115,15 +117,22 @@ function build() {
   play(cfg.url);
   return p;
 
-  // ── 새 창(팝업)으로 분리 → 닫으면 rdash 로 복귀 ──
+  // ── 새 창(팝업)으로 분리 → 닫으면 rdash 로 복귀 (video 를 옮기지 않고 각 창에 새 video + 재연결) ──
   function popOut() {
     const win = window.open('', 'rtsp_' + Date.now(), `width=${cfg.w + 20},height=${cfg.h + 40}`);
-    if (!win) { toast('팝업 차단됨', 'err'); return; }
+    if (!win) { toast('팝업 차단됨 — 브라우저에서 이 사이트 팝업 허용', 'err'); return; }
     win.document.title = 'RTSP — ' + cfg.url;
-    win.document.body.style.cssText = 'margin:0;background:#000';
-    win.document.body.append(video);   // 같은 video 엘리먼트를 팝업으로 이동 (스트림 유지)
+    win.document.body.style.cssText = 'margin:0;background:#000;overflow:hidden';
+    const pv = win.document.createElement('video');
+    pv.autoplay = true; pv.muted = true; pv.playsInline = true; pv.controls = true;
+    pv.style.cssText = 'width:100vw;height:100vh;object-fit:contain;background:#000';
+    win.document.body.append(pv);
     p.style.display = 'none';
-    win.addEventListener('beforeunload', () => { vidWrap.append(video); p.style.display = ''; });   // 창 닫으면 재도킹
+    play(cfg.url, pv);   // 팝업 video 로 재연결
+    // 팝업이 닫혔는지 부모에서 폴링 — beforeunload 는 window.open 자식에서 불안정
+    const poll = setInterval(() => {
+      if (win.closed) { clearInterval(poll); if (panel) { p.style.display = ''; play(cfg.url, video); } }
+    }, 500);
   }
 }
 
