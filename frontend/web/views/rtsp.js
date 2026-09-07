@@ -24,10 +24,11 @@ function build() {
 
   // ── MSE 재생 엔진 — 지정한 video 엘리먼트에 스트림을 붙인다(도킹/팝업이 각자 video 소유) ──
   const video = el('video', { autoplay: true, muted: true, playsinline: true, style: 'width:100%;height:100%;background:#000;object-fit:contain;display:block' });
-  // PiP 진입/이탈 시 재생이 멈추면 다시 재생 (일부 브라우저는 컨텍스트 전환에서 일시정지시킨다)
+  // PiP 진입 시 도킹 패널을 숨긴다 — 패널을 닫아 video 가 사라지면 PiP 도 멈추므로 아예 못 닫게.
+  // 이탈 시 다시 보이고, 멈췄으면 재생 재개.
   const keepPlaying = () => { if (video.paused) video.play().catch(() => {}); };
-  video.addEventListener('enterpictureinpicture', () => setTimeout(keepPlaying, 100));
-  video.addEventListener('leavepictureinpicture', () => setTimeout(keepPlaying, 100));
+  video.addEventListener('enterpictureinpicture', () => { if (panel) panel.style.display = 'none'; setTimeout(keepPlaying, 100); });
+  video.addEventListener('leavepictureinpicture', () => { if (panel) panel.style.display = ''; setTimeout(keepPlaying, 100); });
   let target = video;   // 현재 재생 대상 (도킹 video 또는 팝업 video)
   let stream = null, ms = null, sb = null, queue = [];
   const flush = () => { if (!sb || sb.updating || !queue.length) return; try { sb.appendBuffer(queue.shift()); } catch (_) { queue = []; } };
