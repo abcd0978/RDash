@@ -2,7 +2,7 @@
 // 프레임: 텍스트 {"i":id,"d":line}  ·  바이너리 [uint32 id][uint32 mode][float32 xyzc...](클라우드).
 import { WebSocketServer } from 'ws';
 import { be } from './ros.js';
-import { pipeLines, pipeBlocks, pipeCloud } from './http.js';
+import { pipeLines, pipeBlocks, pipeCloud, pipeRtsp } from './http.js';
 import { rbTelemetryCore, rbEchoOff } from './telemetry.js';
 
 export function attachWebSocket(server) {
@@ -51,6 +51,7 @@ function wsStart(ws, m) {
     imgstream: () => t && (child = pipeLines(be.imgBridge(t), txt)),
     imstream: () => t && (child = pipeLines(be.imBridge(t), txt)),   // 인터랙티브 마커(양방향: feed→stdin)
     cloudstream: () => t && (child = pipeCloud(be.cloudBridge(t), bin)),
+    rtsp: () => params.url && (child = pipeRtsp(params.url, bin)),   // RTSP → fMP4 (브라우저 MSE 재생)
   };
   // rosbridge 준비 여부로 게이트하지 않는다 — 예전엔 !ready 면 에러 한 줄만 보내고 구독을 등록하지
   // 않았고, 그래서 rosbridge 가 나중에 떠도 보낼 대상이 없어 그 클라이언트는 영구히 빈 화면이었다.

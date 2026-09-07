@@ -1,6 +1,8 @@
 // HTTP 스트림 헬퍼 · 프로세스→스트림 파이프 · 정적 파일 루트. json/readBody/serveFile 은 Express 가 대신한다.
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { spawn } from 'child_process';
+import ffmpegPath from 'ffmpeg-static';
 import { rosSpawn } from '../shared/ros.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -60,6 +62,20 @@ export function pipeBlocks(cmd, send) {   // '---' 구분 블록(echo/diagnostic
   return child;
 }
 // 클라우드 바이너리 프레임 리더: [uint32 LE len][payload=mode(4)+float32...]. base64 없이 그대로 흘림(최속).
+// RTSP(H.264) → fMP4 remux → 바이너리 조각. 디코딩 없이 재포장만이라 CPU 거의 0.
+export function pipeRtsp(url, sendBin) {
+  const child = spawn(ffmpegPath, [
+    '-rtsp_transport', 'tcp', '-i', url,
+    '-an', '-c:v', 'copy',
+    '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
+    '-frag_duration', '200000', 'pipe:1',
+  ]);
+  child.stdout.on('data', (d) => sendBin(d));
+  if (child.stderr) child.stderr.on('data', () => {});
+  child.on('error', () => {});
+  return child;
+}
+
 export function pipeCloud(cmd, sendBin) {
   const child = rosSpawn(cmd);
   let buf = Buffer.alloc(0);

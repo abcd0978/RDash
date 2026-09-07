@@ -13,6 +13,7 @@ import { plotlab } from './plotlab.js';
 import { bookmarks, jobs } from './bookmarks.js';
 import { overlays } from './overlays.js';
 import { rosbridge } from './rosbridge.js';
+import { rtsp } from './rtsp.js';
 
 export const Views = {
   msgdef, qos, connections, tftree,
@@ -25,4 +26,5 @@ export const Views = {
   bookmarks, jobs,
   overlays,
   rosbridge,
+  rtsp,
 };
