@@ -46,7 +46,9 @@ export async function tftree() {
 export function setparam(it) {
   const inp = el('input', { style: 'width:100%', value: '', placeholder: '조회 중…' });
   const out = el('pre', { class: 'out' });
-  openModal('set param — ' + it.name, el('div', {}, inp, el('div', { class: 'actbtns' }, el('button', { class: 'act', onclick: async () => { const r = await post('/api/setparam1', { name: it.name, value: inp.value }); out.textContent = r.out; } }, '적용')), out));
+  const apply = async () => { const r = await post('/api/setparam1', { name: it.name, value: inp.value }); out.textContent = r.out; };
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
+  openModal('set param — ' + it.name, el('div', {}, inp, el('div', { class: 'actbtns' }, el('button', { class: 'act', onclick: apply }, '적용 (Enter)')), out));
   // 현재값 프리필 — 파라미터는 수정이지 새로 짓는 게 아니다(실패해도 입력은 막지 않음)
   const done = () => { inp.placeholder = ''; };
   api('/api/param/get1?name=' + encodeURIComponent(it.name)).then((r) => { if (r && typeof r.out === 'string' && !inp.value) inp.value = r.out.trim(); done(); }).catch(done);
@@ -63,7 +65,9 @@ export async function params(it) {
   for (const row of r.rows) {
     const val = el('input', { value: row.value, style: 'width:120px' });
     const cell = el('td', {}, val);
-    const setb = el('button', { class: 'act', onclick: async () => { const rr = await post('/api/param/set', { node: it.name, name: row.name, value: val.value }); val.value = rr.value; } }, 'set');
+    const setOne = async () => { const rr = await post('/api/param/set', { node: it.name, name: row.name, value: val.value }); val.value = rr.value; };
+    val.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); setOne(); } });
+    const setb = el('button', { class: 'act', onclick: setOne }, 'set');
     tbl.append(el('tr', {}, el('td', {}, row.name), cell, el('td', {}, setb)));
   }
   wrap.append(tbl);

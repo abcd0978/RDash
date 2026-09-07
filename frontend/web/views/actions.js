@@ -97,7 +97,9 @@ export function action(it) {
 export function msgForm(title, url, base, key, protoUrl) {
   const ta = el('textarea', { rows: 5, style: 'width:100%', html: '{}' });
   const out = el('pre', { class: 'out' });
-  const btn = el('button', { class: 'act', onclick: async () => { out.textContent = '전송 중…'; const r = await post(url, { ...base, [key]: ta.value }); out.textContent = r.out; } }, '전송');
+  const send = async () => { out.textContent = '전송 중…'; const r = await post(url, { ...base, [key]: ta.value }); out.textContent = r.out; };
+  ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
+  const btn = el('button', { class: 'act', onclick: send }, '전송 (Enter)');
   const sel = el('select', { style: 'display:none;width:100%', onchange: () => { ta.value = sel.value; } });   // 프리셋 — 있을 때만 보인다
   const replyHint = el('div', { class: 'hint', style: 'display:none' });   // 응답 토픽 — 있을 때만 보인다
   const replyPane = el('pre', { class: 'out', style: 'display:none' });
