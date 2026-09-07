@@ -1,66 +1,148 @@
-/* rtsp — RTSP 주소를 백엔드에서 fMP4 remux 해 브라우저 MSE 로 재생. */
+/* rtsp — 도킹형 플로팅 RTSP 플레이어. 백엔드 fMP4 remux → MSE. 드래그/리사이즈, PiP·팝업 분리, 설정 저장. */
 import { el } from '../lib/dom.js';
-import { openModal, toast, getActiveModal } from '../lib/modal.js';
+import { toast } from '../lib/modal.js';
 import { openStream } from '../lib/stream.js';
 
-const LAST = 'rdash.rtsp.url';
+const CFG = 'rdash.rtsp.cfg';
+let panel = null;   // 싱글톤 — 뷰 전환해도 상주
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(CFG)) || {}; } catch (_) { return {}; }
+}
+function save(c) {
+  try { localStorage.setItem(CFG, JSON.stringify(c)); } catch (_) { /* */ }
+}
 
 export function rtsp() {
-  let url = '';
-  try { url = localStorage.getItem(LAST) || ''; } catch (_) { /* */ }
+  if (panel) { panel.style.display = ''; return; }   // 이미 있으면 다시 보이기만
+  panel = build();
+  document.body.append(panel);
+}
 
-  const input = el('input', { value: url, placeholder: 'rtsp://100.88.16.17:8554/scan', style: 'flex:1;min-width:0' });
-  const video = el('video', { autoplay: true, muted: true, playsinline: true, controls: true, style: 'width:100%;background:#000;border-radius:4px;margin-top:8px;max-height:70vh' });
-  const status = el('div', { class: 'hint', style: 'margin-top:4px' }, '주소 입력 후 재생');
+function build() {
+  const cfg = Object.assign({ url: 'rtsp://100.88.16.17:8554/scan', presets: [], x: 0, y: 0, w: 420, h: 260, lowLatency: true }, load());
 
-  let stream = null, ms = null, sb = null, queue = [], mime = 'video/mp4; codecs="avc1.42E01F"';
-
+  // ── MSE 재생 엔진 ──
+  const video = el('video', { autoplay: true, muted: true, playsinline: true, style: 'width:100%;height:100%;background:#000;object-fit:contain;display:block' });
+  let stream = null, ms = null, sb = null, queue = [];
+  const flush = () => { if (!sb || sb.updating || !queue.length) return; try { sb.appendBuffer(queue.shift()); } catch (_) { queue = []; } };
   const stop = () => {
     if (stream) { stream.close(); stream = null; }
     try { if (ms && ms.readyState === 'open') ms.endOfStream(); } catch (_) { /* */ }
     sb = null; queue = [];
   };
-
-  const flush = () => {
-    if (!sb || sb.updating || !queue.length) return;
-    try { sb.appendBuffer(queue.shift()); } catch (_) { queue = []; }
-  };
-
-  const play = () => {
+  const play = (u) => {
     stop();
-    const u = input.value.trim();
+    u = (u || cfg.url || '').trim();
     if (!u) { toast('RTSP 주소를 입력하세요', 'err'); return; }
-    try { localStorage.setItem(LAST, u); } catch (_) { /* */ }
-    status.textContent = '연결 중…';
-
+    cfg.url = u; save(cfg);
+    setStatus('연결 중…');
     ms = new MediaSource();
     video.src = URL.createObjectURL(ms);
     ms.addEventListener('sourceopen', () => {
-      try { sb = ms.addSourceBuffer(mime); } catch (e) { status.textContent = '코덱 미지원: ' + e.message; return; }
+      try { sb = ms.addSourceBuffer('video/mp4; codecs="avc1.42E01F"'); } catch (e) { setStatus('코덱 오류: ' + e.message); return; }
       sb.mode = 'sequence';
-      sb.addEventListener('updateend', flush);
+      sb.addEventListener('updateend', () => {
+        flush();
+        // 저지연 — 라이브 끝단으로 계속 따라붙어 버퍼 누적 방지
+        if (cfg.lowLatency && video.buffered.length) {
+          const end = video.buffered.end(video.buffered.length - 1);
+          if (end - video.currentTime > 1.0) video.currentTime = end - 0.3;
+        }
+      });
       let first = true;
       stream = openStream('/rtsp?url=' + encodeURIComponent(u), (data) => {
         if (!(data instanceof ArrayBuffer)) return;
-        if (first) { first = false; status.textContent = '재생 중 — ' + u; }
-        queue.push(new Uint8Array(data, 4));   // 앞 4바이트는 스트림 id
+        if (first) { first = false; setStatus(''); }
+        queue.push(new Uint8Array(data, 4));
         flush();
       });
     }, { once: true });
     video.play().catch(() => {});
   };
 
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); play(); } });
+  // ── 헤더 (드래그 핸들 + 버튼) ──
+  const title = el('span', { style: 'flex:1;font-size:12px;color:var(--dim);cursor:move;user-select:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' }, '📺 RTSP');
+  const status = el('span', { style: 'font-size:11px;color:var(--accent)' });
+  const setStatus = (t) => { status.textContent = t; };
+  const btn = (label, ttl, fn) => el('button', { title: ttl, onclick: fn, style: 'background:none;border:0;color:var(--fg);cursor:pointer;font-size:13px;padding:0 4px' }, label);
 
-  const wrap = el('div', {},
-    el('div', { class: 'actbtns', style: 'display:flex;gap:6px' },
-      input,
-      el('button', { class: 'act', onclick: play }, '▶ 재생 (Enter)'),
-      el('button', { class: 'act', onclick: () => { stop(); status.textContent = '정지됨'; } }, '■ 정지')),
-    status, video);
+  const header = el('div', { style: 'display:flex;align-items:center;gap:2px;padding:4px 6px;background:var(--panel);border-bottom:1px solid var(--line)' },
+    title, status,
+    btn('⚙', '설정', () => toggleCfg()),
+    btn('⧉', 'PiP (다른 앱 위에)', () => { try { video.requestPictureInPicture(); } catch (_) { toast('PiP 미지원 브라우저', 'err'); } }),
+    btn('⊞', '새 창으로', () => popOut()),
+    btn('✕', '닫기', () => { stop(); panel.remove(); panel = null; }));
 
-  openModal('📺 RTSP 재생', wrap);
-  const mm = getActiveModal();
-  if (mm) mm.close = stop;   // 모달 닫으면 스트림·ffmpeg 정리
-  if (url) play();
+  // ── 설정 패널 ──
+  const urlInput = el('input', { value: cfg.url, placeholder: 'rtsp://…', style: 'flex:1;min-width:0;font-size:12px' });
+  urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); play(urlInput.value); } });
+  const presetSel = el('select', { style: 'font-size:11px;max-width:120px', onchange: () => { if (presetSel.value) { urlInput.value = presetSel.value; play(presetSel.value); } } });
+  const refreshPresets = () => {
+    presetSel.innerHTML = '';
+    presetSel.append(el('option', { value: '' }, '프리셋…'));
+    (cfg.presets || []).forEach((p) => presetSel.append(el('option', { value: p }, p)));
+  };
+  refreshPresets();
+  const lowLat = el('input', { type: 'checkbox' });
+  lowLat.checked = cfg.lowLatency;
+  lowLat.onchange = () => { cfg.lowLatency = lowLat.checked; save(cfg); };
+
+  const cfgPanel = el('div', { style: 'display:none;padding:6px;background:var(--card);border-bottom:1px solid var(--line);font-size:11px' },
+    el('div', { style: 'display:flex;gap:4px;margin-bottom:4px' },
+      urlInput,
+      el('button', { class: 'act', style: 'font-size:11px', onclick: () => play(urlInput.value) }, '▶'),
+      el('button', { title: '이 주소를 프리셋에 저장', style: 'font-size:11px', onclick: () => { const u = urlInput.value.trim(); if (u && !cfg.presets.includes(u)) { cfg.presets.push(u); save(cfg); refreshPresets(); toast('프리셋 저장', 'ok'); } } }, '＋')),
+    el('div', { style: 'display:flex;align-items:center;gap:6px' },
+      presetSel,
+      el('button', { title: '선택 프리셋 삭제', style: 'font-size:11px', onclick: () => { const v = presetSel.value; if (v) { cfg.presets = cfg.presets.filter((p) => p !== v); save(cfg); refreshPresets(); } } }, '－'),
+      el('label', { style: 'margin-left:auto;display:flex;align-items:center;gap:3px;cursor:pointer' }, lowLat, '저지연')));
+  const toggleCfg = () => { cfgPanel.style.display = cfgPanel.style.display === 'none' ? '' : 'none'; };
+
+  // ── 비디오 영역 + 리사이즈 핸들 ──
+  const vidWrap = el('div', { style: 'position:relative;flex:1;min-height:0;background:#000' }, video);
+  const resize = el('div', { style: 'position:absolute;right:0;bottom:0;width:14px;height:14px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,var(--dim) 50%)' });
+  vidWrap.append(resize);
+
+  const p = el('div', { style: `position:fixed;z-index:9000;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:6px;box-shadow:0 6px 24px rgba(0,0,0,.4);overflow:hidden;left:${cfg.x || (window.innerWidth - cfg.w - 20)}px;top:${cfg.y || (window.innerHeight - cfg.h - 20)}px;width:${cfg.w}px;height:${cfg.h}px` },
+    header, cfgPanel, vidWrap);
+
+  // ── 드래그 이동 ──
+  drag(title, p, (x, y) => { cfg.x = x; cfg.y = y; save(cfg); });
+  // ── 리사이즈 ──
+  resizeDrag(resize, p, (w, h) => { cfg.w = w; cfg.h = h; save(cfg); });
+
+  play(cfg.url);
+  return p;
+
+  // ── 새 창(팝업)으로 분리 → 닫으면 rdash 로 복귀 ──
+  function popOut() {
+    const win = window.open('', 'rtsp_' + Date.now(), `width=${cfg.w + 20},height=${cfg.h + 40}`);
+    if (!win) { toast('팝업 차단됨', 'err'); return; }
+    win.document.title = 'RTSP — ' + cfg.url;
+    win.document.body.style.cssText = 'margin:0;background:#000';
+    win.document.body.append(video);   // 같은 video 엘리먼트를 팝업으로 이동 (스트림 유지)
+    p.style.display = 'none';
+    win.addEventListener('beforeunload', () => { vidWrap.append(video); p.style.display = ''; });   // 창 닫으면 재도킹
+  }
+}
+
+function drag(handle, elm, onEnd) {
+  handle.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const sx = e.clientX, sy = e.clientY, ox = elm.offsetLeft, oy = elm.offsetTop;
+    const mv = (ev) => { elm.style.left = ox + (ev.clientX - sx) + 'px'; elm.style.top = oy + (ev.clientY - sy) + 'px'; };
+    const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); onEnd(elm.offsetLeft, elm.offsetTop); };
+    document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+  });
+}
+
+function resizeDrag(handle, elm, onEnd) {
+  handle.addEventListener('mousedown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const sx = e.clientX, sy = e.clientY, ow = elm.offsetWidth, oh = elm.offsetHeight;
+    const mv = (ev) => { elm.style.width = Math.max(220, ow + (ev.clientX - sx)) + 'px'; elm.style.height = Math.max(160, oh + (ev.clientY - sy)) + 'px'; };
+    const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); onEnd(elm.offsetWidth, elm.offsetHeight); };
+    document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up);
+  });
 }
