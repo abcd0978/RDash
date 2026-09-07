@@ -24,6 +24,10 @@ function build() {
 
   // ── MSE 재생 엔진 — 지정한 video 엘리먼트에 스트림을 붙인다(도킹/팝업이 각자 video 소유) ──
   const video = el('video', { autoplay: true, muted: true, playsinline: true, style: 'width:100%;height:100%;background:#000;object-fit:contain;display:block' });
+  // PiP 진입/이탈 시 재생이 멈추면 다시 재생 (일부 브라우저는 컨텍스트 전환에서 일시정지시킨다)
+  const keepPlaying = () => { if (video.paused) video.play().catch(() => {}); };
+  video.addEventListener('enterpictureinpicture', () => setTimeout(keepPlaying, 100));
+  video.addEventListener('leavepictureinpicture', () => setTimeout(keepPlaying, 100));
   let target = video;   // 현재 재생 대상 (도킹 video 또는 팝업 video)
   let stream = null, ms = null, sb = null, queue = [];
   const flush = () => { if (!sb || sb.updating || !queue.length) return; try { sb.appendBuffer(queue.shift()); } catch (_) { queue = []; } };
@@ -46,10 +50,10 @@ function build() {
       sb.mode = 'sequence';
       sb.addEventListener('updateend', () => {
         flush();
-        // 저지연 — 라이브 끝단으로 계속 따라붙어 버퍼 누적 방지
-        if (cfg.lowLatency && target.buffered.length) {
+        // 저지연 — 라이브 끝단에서 너무 뒤처졌을 때만 점프(PiP 등 별도 렌더에서 잦은 seek 은 재생 방해)
+        if (cfg.lowLatency && target.buffered.length && !target.paused) {
           const end = target.buffered.end(target.buffered.length - 1);
-          if (end - target.currentTime > 1.0) target.currentTime = end - 0.3;
+          if (end - target.currentTime > 2.5) target.currentTime = end - 0.5;
         }
       });
       let first = true;
