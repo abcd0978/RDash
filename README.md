@@ -186,8 +186,8 @@ The web UI has **full parity** with the TUI plus GUI-native views:
       orbit / zoom / pan, **camera presets** (Top / Front / Side / Iso).
     - **FPS + point count** overlay and a **wallclock + simulation-time**
       readout (`/clock`).
-    - **Point-cloud LOD** (selectable ⚙): server voxel downsample
-      (`RDASH_CLOUD_VOXEL`) + **shader distance LOD** (keep a `lodDist/depth`
+    - **Point-cloud LOD** (selectable ⚙): server uniform decimation
+      (`RDASH_CLOUD_MAXN`) + **shader distance LOD** (keep a `lodDist/depth`
       fraction past a threshold via a stable hash, survivors enlarged), with
       **Off / Distance / Adaptive** (auto-tune to hold a target FPS) modes, a
       max-points cap, and round/square points. Targets **200k points/s** (Iris
@@ -330,14 +330,13 @@ node index.js             # TUI only (npm start also launches the web server)
 | `RDASH_PYTHON` | `python3` | interpreter used for telemetry / plot / autocomplete / dep install |
 | `RDASH_WEB_PORT` | `8080` | web server port |
 | `RDASH_WEB_HOST` | `0.0.0.0` | web bind address; `127.0.0.1` to restrict to loopback (host can't reach it) |
-| `RDASH_CLOUD_VOXEL` | `0` | point-cloud voxel downsample size in metres (0 = off); e.g. `0.05` → one point per 5 cm cell |
-| `RDASH_CLOUD_MAXN` | `30000` | max points per cloud frame sent to the browser (uniform decimation past this) |
+| `RDASH_CLOUD_MAXN` | `30000` | max points per cloud frame sent to the browser (uniform decimation past this). Clouds are subscribed over rosbridge: `sensor_msgs/PointCloud2` and `livox_ros_driver2/CustomMsg` |
 | `RDASH_NO_WEB` | `0` | set `1` so `npm start` launches the TUI **without** the companion web server |
 | `RDASH_BACKEND` | `rosbridge` (web) | data source: `cli` / `rcl` (single rclpy echo mux) / `rosbridge` (websocket) |
 | `RDASH_TUI_BACKEND` | `cli` | TUI's backend, independent of the web's |
 | `RDASH_WEB_BACKEND` | `rosbridge` | web's backend, independent of the TUI's |
 | `RDASH_ROSBRIDGE_URL` | `ws://localhost:9090` | rosbridge endpoint when the backend is `rosbridge` |
-| `RDASH_TELEM` | — | override the telemetry script (web); `RDASH_IMG_BRIDGE`/`RDASH_CLOUD_BRIDGE`/`RDASH_BAG_DUMP`/`RDASH_ECHO_MUX`/`RDASH_MARKER_BRIDGE`/`RDASH_TF_DUMP`/`RDASH_IMG_ANN_BRIDGE`/`RDASH_CAMINFO_BRIDGE` override the sensor/echo bridges |
+| `RDASH_TELEM` | — | override the telemetry script (web); `RDASH_IMG_BRIDGE`/`RDASH_BAG_DUMP`/`RDASH_ECHO_MUX`/`RDASH_MARKER_BRIDGE`/`RDASH_TF_DUMP`/`RDASH_IMG_ANN_BRIDGE`/`RDASH_CAMINFO_BRIDGE` override the sensor/echo bridges |
 
 ### Files
 - `requirements.txt` — Python plot deps (auto-installed on first run).

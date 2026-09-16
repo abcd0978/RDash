@@ -2,8 +2,8 @@
 // 프레임: 텍스트 {"i":id,"d":line}  ·  바이너리 [uint32 id][uint32 mode][float32 xyzc...](클라우드).
 import { WebSocketServer } from 'ws';
 import { be } from './ros.js';
-import { pipeLines, pipeBlocks, pipeCloud, pipeRtsp } from './http.js';
-import { rbTelemetryCore, rbEchoOff } from './telemetry.js';
+import { pipeLines, pipeBlocks, pipeRtsp } from './http.js';
+import { rbTelemetryCore, rbEchoOff, rbCloudOff } from './telemetry.js';
 
 export function attachWebSocket(server) {
   const wss = new WebSocketServer({ noServer: true });
@@ -50,7 +50,6 @@ function wsStart(ws, m) {
     caminfostream: () => t && (child = pipeLines(be.camInfoBridge(t), txt)),
     imgstream: () => t && (child = pipeLines(be.imgBridge(t), txt)),
     imstream: () => t && (child = pipeLines(be.imBridge(t), txt)),   // 인터랙티브 마커(양방향: feed→stdin)
-    cloudstream: () => t && (child = pipeCloud(be.cloudBridge(t), bin)),
     rtsp: () => params.url && (child = pipeRtsp(params.url, bin)),   // RTSP → fMP4 (브라우저 MSE 재생)
   };
   // rosbridge 준비 여부로 게이트하지 않는다 — 예전엔 !ready 면 에러 한 줄만 보내고 구독을 등록하지
@@ -62,6 +61,7 @@ function wsStart(ws, m) {
   // 실데이터로 넘어가며, rb.subscribe 는 준비 전 요청을 큐에 넣어 open 때 flush + 재연결 때 재구독한다.
   if (stream === 'events') off = rbTelemetryCore(txt);
   else if (stream === 'echo') { if (t) off = rbEchoOff(t, txt, params.type); }
+  else if (stream === 'cloudstream') { if (t) off = rbCloudOff(t, bin); }   // rosbridge 구독 → 바이너리(원격 rosbridge 환경엔 파이썬 브리지가 못 돈다)
   else if (map[stream]) map[stream]();
   return {
     off: () => { if (child) { try { child.kill(); } catch { /* */ } } if (off) { try { off(); } catch { /* */ } } },

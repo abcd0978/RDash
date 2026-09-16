@@ -1,5 +1,6 @@
 // rosbridge 클라이언트 · 텔레메트리 폴링 싱글톤 · 그래프 스냅샷 · echo.
 import { RosbridgeClient, msgToYaml, looseJson } from '../shared/rosbridge.js';
+import { cloudFrame } from '../shared/cloud.js';
 import { be, VER } from './ros.js';
 import { sse } from './http.js';
 
@@ -294,4 +295,11 @@ export function rbEcho(res, topic, type) {
   const send = sse(res);
   const off = rbEchoOff(topic, send, type);
   res.on('close', off);
+}
+// 클라우드 스트림(3D) — rosbridge 구독 → 바이너리 프레임(shared/cloud.js). PointCloud2·livox CustomMsg 를 메시지 모양으로 가린다.
+// 보기용이라 throttle_rate 로 5Hz 상한, queue_length 1 로 밀린 프레임은 버린다(프레임당 수 MB JSON).
+export function rbCloudOff(topic, sendBin) {
+  rbEnsure();
+  const off = rb.subscribe(topic, '', (msg) => { const b = cloudFrame(msg); if (b) sendBin(b); }, { throttle_rate: 200, queue_length: 1 });
+  return () => off();
 }

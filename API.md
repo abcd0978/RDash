@@ -120,7 +120,7 @@ Server → client:
 | `diagnostics` | — | one DiagnosticArray block (text) |
 | `bw` | `topic` | one line of `rostopic bw` output (`average: 2.00KB/s`, …) |
 | `imgstream` | `topic` | JSON line: base64 JPEG frame |
-| `cloudstream` | `topic` | *binary frames* (PointCloud2 xyz) |
+| `cloudstream` | `topic` | *binary frames* (PointCloud2 · livox_ros_driver2/CustomMsg → xyzc, subscribed via rosbridge) **[RB]** |
 | `markerstream` | `topic` | JSON line: visualization_msgs Marker(Array) |
 | `geomstream` | `topic`, `type` | JSON line: LaserScan/Path/Odometry/Pose*/OccupancyGrid → markers |
 | `tfstream` | — | JSON line: TF frame transforms |

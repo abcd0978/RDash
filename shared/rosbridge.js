@@ -16,6 +16,7 @@ export class RosbridgeClient {
     this.url = url; this.ws = null; this.ready = false; this.idc = 0;
     this.topicCbs = new Map();   // topic → Set(cb)
     this.topicTypes = new Map(); // topic → type (재연결 시 재구독하려면 타입을 기억해야 함)
+    this.topicOpts = new Map();  // topic → subscribe 옵션(throttle_rate·queue_length) — 재구독 때도 같이 보낸다
     this.svcCbs = new Map();     // id → resolve
     this.q = []; this._advertised = new Set(); this._t = null;
     this._ping = null;           // ping 인터벌 핸들
@@ -33,7 +34,7 @@ export class RosbridgeClient {
       this.ready = true;
       this._fails = 0;
       this._startPing(sock);
-      for (const [topic, type] of this.topicTypes) this.ws.send(JSON.stringify({ op: 'subscribe', topic, type: type || undefined }));   // 재연결 시 서버가 구독을 잊었으므로 재구독
+      for (const [topic, type] of this.topicTypes) this.ws.send(JSON.stringify({ op: 'subscribe', topic, type: type || undefined, ...(this.topicOpts.get(topic) || {}) }));   // 재연결 시 서버가 구독을 잊었으므로 재구독
       this._advertised.clear();   // 재연결 시 advertise 도 잊혔으므로 다음 publish() 가 다시 advertise 하게 비움
       for (const m of this.q) this.ws.send(m); this.q = [];
     });
@@ -83,12 +84,12 @@ export class RosbridgeClient {
   _retry() { if (this._t) return; this._t = setTimeout(() => { this._t = null; this.connect(); }, 1500); }
   _send(o) { const m = JSON.stringify(o); if (this.ready) { try { this.ws.send(m); } catch { this.q.push(m); } } else this.q.push(m); }
 
-  // 토픽 구독(ref-count) — cb(msg). 반환: 구독 해제 함수.
-  subscribe(topic, type, cb) {
+  // 토픽 구독(ref-count) — cb(msg). opts 는 rosbridge subscribe 필드(throttle_rate, queue_length 등), 같은 토픽의 첫 구독자 것만 쓴다. 반환: 구독 해제 함수.
+  subscribe(topic, type, cb, opts = {}) {
     let set = this.topicCbs.get(topic);
-    if (!set) { set = new Set(); this.topicCbs.set(topic, set); this.topicTypes.set(topic, type); this._send({ op: 'subscribe', topic, type: type || undefined }); }   // type 도 기억 — 재연결 open 때 재구독하려면 필요
+    if (!set) { set = new Set(); this.topicCbs.set(topic, set); this.topicTypes.set(topic, type); this.topicOpts.set(topic, opts); this._send({ op: 'subscribe', topic, type: type || undefined, ...opts }); }   // type 도 기억 — 재연결 open 때 재구독하려면 필요
     set.add(cb);
-    return () => { const s = this.topicCbs.get(topic); if (s) { s.delete(cb); if (!s.size) { this.topicCbs.delete(topic); this.topicTypes.delete(topic); this._send({ op: 'unsubscribe', topic }); } } };
+    return () => { const s = this.topicCbs.get(topic); if (s) { s.delete(cb); if (!s.size) { this.topicCbs.delete(topic); this.topicTypes.delete(topic); this.topicOpts.delete(topic); this._send({ op: 'unsubscribe', topic }); } } };
   }
 
   // 서비스 호출(rosapi 포함) → Promise<values|null>. 4s 타임아웃.

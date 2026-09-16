@@ -4,6 +4,9 @@
 
 import { $ } from './dom.js';
 
+// 3D 클라우드로 볼 수 있는 토픽 타입 — PointCloud2 + livox 드라이버의 CustomMsg(백엔드 cloudstream 이 둘 다 디코드)
+export const isCloudType = (ty) => /PointCloud2|livox_ros_driver2\/(msg\/)?CustomMsg/.test(ty || '');
+
 // 클라우드 디코드 — WS 바이너리 프레임 [id(4)][mode(4)][float32 xyzc] → {arr(stride4), mode}. (레거시 base64 문자열도 허용)
 export function decodeCloud(data) {
   if (data instanceof ArrayBuffer) {

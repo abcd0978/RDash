@@ -2,7 +2,7 @@
    게이지 레인지(gMin/gMax/gKey)는 이 모듈에 캡슐화된 상태다. */
 
 import { $, el, post } from '../lib/dom.js';
-import { openStream } from '../lib/stream.js';
+import { openStream, isCloudType } from '../lib/stream.js';
 import { state, byName } from '../lib/state.js';
 import { toast } from '../lib/modal.js';
 import { kindIcon, renderInfo } from './info.js';
@@ -163,7 +163,7 @@ export function renderValActs() {
     if ((it.ty || '').includes('NavSatFix')) add('🗺 map', () => Views.map(it));
     if ((it.ty || '').includes('Pose2D')) add('🐢 turtle', () => Views.turtle(it));
     if ((it.ty || '').includes('CompressedImage') || (it.ty || '').includes('sensor_msgs/msg/Image')) add('🖼 image', () => Views.image(it));
-    if ((it.ty || '').includes('PointCloud2') || /visualization_msgs\/(msg\/)?Marker(Array)?/.test(it.ty || '')) add('🧊 3D', () => Views.cloud(it));
+    if (isCloudType(it.ty) || /visualization_msgs\/(msg\/)?Marker(Array)?/.test(it.ty || '')) add('🧊 3D', () => Views.cloud(it));
     add('msg def', () => Views.msgdef(it));
     add('QoS', () => Views.qos(it));
     add('connections', () => Views.connections(it));

@@ -121,7 +121,7 @@ Then it belongs to that side.
 backend/python/
   common/ros_compat.py   # ROS1(rospy) / ROS2(rclpy) shim — 8 bridges import it
   telemetry/             # telemetry.py, telemetry_ros2.py  → graph snapshot stream
-  scene3d/               # marker_bridge, geom_bridge, urdf_bridge, im_bridge, cloud_bridge, tf_dump
+  scene3d/               # marker_bridge, geom_bridge, urdf_bridge, im_bridge, tf_dump (pointcloud is rosbridge-native: shared/cloud.js)
   image/                 # img_bridge (Image→JPEG), img_ann_bridge, caminfo_bridge
   stream/                # ros_echo_mux.py — one rclpy node echoing N topics (kills process-per-topic)
   tools/                 # plot.py (matplotlib), bag_dump.py, tf_tree.py

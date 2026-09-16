@@ -3,7 +3,7 @@
    mkScene/buildGraph/emptyState/spinner) 재사용. 독자 구현(외부 코드 미사용). */
 
 import { el, emptyState } from './lib/dom.js';
-import { openStream, decodeCloud } from './lib/stream.js';
+import { openStream, decodeCloud, isCloudType } from './lib/stream.js';
 import { state } from './lib/state.js';
 import { numeric } from './panels/value.js';
 import { mkScene } from './views/scene3d.js';
@@ -158,7 +158,7 @@ function topicSelect(ctx, cfg, filter, label, key, onChange) {
 }
 
 const isImg = (i) => /CompressedImage|sensor_msgs\/(msg\/)?Image/.test(i.ty || '');
-const isCloud = (i) => (i.ty || '').includes('PointCloud2');
+const isCloud = (i) => isCloudType(i.ty);
 const isMarker = (i) => /visualization_msgs\/(msg\/)?Marker(Array)?/.test(i.ty || '');
 const isAnn = (i) => /Detection2D(Array)?|ImageAnnotations/.test(i.ty || '');
 const isCamInfo = (i) => /CameraInfo/.test(i.ty || '');

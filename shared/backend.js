@@ -9,7 +9,7 @@
 // 지금은 rosbridge 하나뿐이고, rosbridge_suite 가 필수다(없으면 backend/ros.js 가 띄운다).
 import { rosbridgeUrl } from './ports.js';
 import { actionFor, restartFor, protoCmd, bwCmd, splitNodeParam } from './ros.js';
-import { IMG_BRIDGE, CLOUD_BRIDGE, BAG_DUMP, MARKER_BRIDGE, TF_DUMP, IMG_ANN_BRIDGE, CAMINFO_BRIDGE, GEOM_BRIDGE, URDF_BRIDGE, IM_BRIDGE } from './paths.js';
+import { IMG_BRIDGE, BAG_DUMP, MARKER_BRIDGE, TF_DUMP, IMG_ANN_BRIDGE, CAMINFO_BRIDGE, GEOM_BRIDGE, URDF_BRIDGE, IM_BRIDGE } from './paths.js';
 import {
   resourceCmd, tfTreeCmd, tfEchoCmd, bagRecordCmd, bagPlayCmd, bagCompareCmd,
   msgDefCmd, paramListCmd, paramGetCmd, paramSetCmd,
@@ -56,7 +56,6 @@ export class Backend {
 
   // 센서/3D 브리지 — 각 경로는 shared/paths.js 가 유일한 창구, env 로 개별 오버라이드 가능.
   imgBridge(topic) { return `python3 ${shq(process.env.RDASH_IMG_BRIDGE || IMG_BRIDGE)} ${shq(topic)} 2>/dev/null`; }
-  cloudBridge(topic) { return `python3 ${shq(process.env.RDASH_CLOUD_BRIDGE || CLOUD_BRIDGE)} ${shq(topic)} 2>/dev/null`; }
   bagDump(path, topics) { return `python3 ${shq(process.env.RDASH_BAG_DUMP || BAG_DUMP)} ${shq(path)} ${shq(topics || '')} 2>/dev/null`; }
   markerBridge(topic) { return `python3 ${shq(process.env.RDASH_MARKER_BRIDGE || MARKER_BRIDGE)} ${shq(topic)} 2>/dev/null`; }
   tfDump() { return `python3 ${shq(process.env.RDASH_TF_DUMP || TF_DUMP)} 2>/dev/null`; }

@@ -27,7 +27,6 @@ export const TF_DUMP = join(PY, 'scene3d', 'tf_dump.py');             // /tf →
 export const GEOM_BRIDGE = join(PY, 'scene3d', 'geom_bridge.py');     // LaserScan/Path/Odometry/Pose*/OccupancyGrid → 마커 JSON
 export const URDF_BRIDGE = join(PY, 'scene3d', 'urdf_bridge.py');     // robot_description(URDF) → 링크 비주얼 마커(TRIANGLE_LIST 메시)
 export const IM_BRIDGE = join(PY, 'scene3d', 'im_bridge.py');         // InteractiveMarker(6-DOF) ↔ 피드백(양방향) JSON
-export const CLOUD_BRIDGE = join(PY, 'scene3d', 'cloud_bridge.py');   // PointCloud2 → base64 float32 xyz 스트림
 
 export const IMG_BRIDGE = join(PY, 'image', 'img_bridge.py');         // CompressedImage/Image → base64 JPEG 스트림
 export const IMG_ANN_BRIDGE = join(PY, 'image', 'img_ann_bridge.py'); // 검출/주석 → JSON (이미지 오버레이)

@@ -5,7 +5,7 @@
 import { $, el, post, SNAP } from '../lib/dom.js';
 import { state } from '../lib/state.js';
 import { openModal, setModalSub, toast } from '../lib/modal.js';
-import { openStream, decodeCloud } from '../lib/stream.js';
+import { openStream, decodeCloud, isCloudType } from '../lib/stream.js';
 import { Clock } from '../lib/clock.js';
 
 const qrot = (q, v) => {
@@ -555,7 +555,7 @@ export function mkScene(cv, labelDiv, info) {
 // 🧊 3D 씬 — RViz 식 Displays 패널: 여러 토픽(클라우드/마커)을 동시에 씬에 올리고 체크박스로 표시/숨김,
 //   TF·그리드·축·LOD 내장 디스플레이, 거리 LOD 렌더, FPS·점수·벽시계/시뮬시각 표시.
 export function cloud(it) {
-  const cloudTopics = () => state.items.filter((i) => (i.ty || '').includes('PointCloud2')).map((i) => i.name);
+  const cloudTopics = () => state.items.filter((i) => isCloudType(i.ty)).map((i) => i.name);
   const markerTopics = () => state.items.filter((i) => /visualization_msgs\/(msg\/)?Marker(Array)?/.test(i.ty || '')).map((i) => i.name);
   const GEOMRE = /LaserScan|nav_msgs\/(msg\/)?Path|Odometry|PoseArray|PoseStamped|PointStamped|OccupancyGrid|VehicleOdometry/;
   const geomTopics = () => state.items.filter((i) => GEOMRE.test(i.ty || '')).map((i) => [i.name, i.ty || '']);

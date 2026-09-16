@@ -76,21 +76,6 @@ export function pipeRtsp(url, sendBin) {
   return child;
 }
 
-export function pipeCloud(cmd, sendBin) {
-  const child = rosSpawn(cmd);
-  let buf = Buffer.alloc(0);
-  child.stdout.on('data', (d) => {
-    buf = Buffer.concat([buf, d]);
-    while (buf.length >= 4) {
-      const len = buf.readUInt32LE(0);
-      if (buf.length < 4 + len) break;
-      sendBin(buf.subarray(4, 4 + len));
-      buf = buf.subarray(4 + len);
-    }
-  });
-  if (child.stderr) child.stderr.on('data', () => {});
-  return child;
-}
 export function streamLines(res, cmd, writeScript) {
   const send = sse(res);
   const child = pipeLines(cmd, send, writeScript);
