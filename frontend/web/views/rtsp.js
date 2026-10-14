@@ -61,6 +61,8 @@ function build() {
           else if (lag < 0.35) target.playbackRate = 1;
           setStatus(`지연 ${lag.toFixed(1)}s`);
         } else if (target.playbackRate !== 1) target.playbackRate = 1;
+        const old = target.currentTime - 20;
+        if (!sb.updating && target.buffered.start(0) < old) { try { sb.remove(0, old); } catch (_) { /* */ } }
       });
       let first = true;
       stream = openStream('/rtsp?url=' + encodeURIComponent(u), (data) => {
