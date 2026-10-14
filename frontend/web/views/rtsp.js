@@ -51,11 +51,16 @@ function build() {
       sb.mode = 'sequence';
       sb.addEventListener('updateend', () => {
         flush();
-        // 저지연 — 라이브 끝단에서 너무 뒤처졌을 때만 점프(PiP 등 별도 렌더에서 잦은 seek 은 재생 방해)
-        if (cfg.lowLatency && target.buffered.length && !target.paused) {
-          const end = target.buffered.end(target.buffered.length - 1);
-          if (end - target.currentTime > 2.5) target.currentTime = end - 0.5;
-        }
+        if (!target.buffered.length || target.paused) return;
+        const end = target.buffered.end(target.buffered.length - 1);
+        const lag = end - target.currentTime;
+        // 저지연 — 뒤처진 만큼 재생속도로 따라잡고, 크게 밀렸을 때만 점프(잦은 seek 은 PiP 등 별도 렌더를 방해)
+        if (cfg.lowLatency) {
+          if (lag > 1.5) { target.currentTime = end - 0.25; target.playbackRate = 1; }
+          else if (lag > 0.6) target.playbackRate = 1.1;
+          else if (lag < 0.35) target.playbackRate = 1;
+          setStatus(`지연 ${lag.toFixed(1)}s`);
+        } else if (target.playbackRate !== 1) target.playbackRate = 1;
       });
       let first = true;
       stream = openStream('/rtsp?url=' + encodeURIComponent(u), (data) => {
