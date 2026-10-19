@@ -65,10 +65,11 @@ export function pipeBlocks(cmd, send) {   // '---' 구분 블록(echo/diagnostic
 // RTSP(H.264) → fMP4 remux → 바이너리 조각. 디코딩 없이 재포장만이라 CPU 거의 0.
 export function pipeRtsp(url, sendBin) {
   const child = spawn(ffmpegPath, [
+    '-fflags', 'nobuffer', '-probesize', '32', '-analyzeduration', '0',
     '-rtsp_transport', 'tcp', '-i', url,
     '-an', '-c:v', 'copy',
     '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
-    '-frag_duration', '200000', 'pipe:1',
+    '-frag_duration', '100000', 'pipe:1',
   ]);
   child.stdout.on('data', (d) => sendBin(d));
   if (child.stderr) child.stderr.on('data', () => {});
