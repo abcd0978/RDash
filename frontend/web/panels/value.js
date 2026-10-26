@@ -142,7 +142,7 @@ export function selectTopic(name) {
     $('#val').textContent = text.slice(0, 1500);
     const nums = numeric(text), t = (Date.now() - t0) / 1000;
     for (const [k, v] of Object.entries(nums)) {
-      if (!series[k]) { series[k] = []; order.push(k); if (picked.size < 2) picked.add(k); renderFields(); }
+      if (!series[k]) { series[k] = []; order.push(k); if (picked.size < 2 && !k.startsWith('header.')) picked.add(k); renderFields(); }
       series[k].push([t, v]);
       if (series[k].length > 600) series[k].shift();
     }
@@ -202,13 +202,15 @@ export function drawPlot() {
   for (const k of keys) for (const [t, v] of series[k]) { if (v < mn) mn = v; if (v > mx) mx = v; if (t < tmin) tmin = t; if (t > tmax) tmax = t; }
   if (mx - mn < 1e-9) { mx += 1; mn -= 1; }
   const cols = ['#57c7d4', '#e2c85a', '#6fd08c', '#c78ad2'];
+  const top = 6 + keys.length * 13;   // 범례 줄 아래부터 그린다 — 선이 범례 글자를 덮지 않게
+  ctx.font = '11px monospace';
   keys.forEach((k, ci) => {
     ctx.strokeStyle = cols[ci % cols.length];
     ctx.lineWidth = 1.4;
     ctx.beginPath();
-    series[k].forEach(([t, v], i) => { const x = (t - tmin) / (tmax - tmin || 1) * (W - 8) + 4, y = Hh - 6 - (v - mn) / (mx - mn) * (Hh - 14); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    series[k].forEach(([t, v], i) => { const x = (t - tmin) / (tmax - tmin || 1) * (W - 8) + 4, y = Hh - 6 - (v - mn) / (mx - mn) * (Hh - 6 - top); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
     ctx.stroke();
     ctx.fillStyle = cols[ci % cols.length];
-    ctx.fillText(k, 6, 12 + ci * 12);
+    ctx.fillText(k, 6, 14 + ci * 13);
   });
 }

@@ -13,10 +13,10 @@
           --cyan:#0e8393; --green:#2f9e50; --yellow:#a9790a; --red:#cf3a3a; --blue:#3a63c0; --mag:#9647ab; }
   * { box-sizing:border-box; }
   body { margin:0; font:13px/1.45 ui-monospace,Menlo,Consolas,monospace; background:var(--bg); color:var(--fg); height:100vh; overflow:hidden; }
-  #app { display:grid; grid-template-columns:260px 1fr 340px; grid-template-rows:36px 1fr; height:100vh; }
-  header { grid-column:1/4; display:flex; align-items:center; gap:8px; padding:0 10px; background:var(--panel); border-bottom:1px solid var(--line); }
-  header b { color:var(--cyan); } header .s { color:var(--dim); }
-  header .tb { margin-left:auto; display:flex; gap:5px; flex-wrap:nowrap; overflow:auto; }
+  #app { display:grid; grid-template-columns:260px 1fr 340px; grid-template-rows:auto 1fr; height:100vh; }
+  header { grid-column:1/4; display:flex; align-items:center; gap:8px; min-height:36px; padding:4px 10px; background:var(--panel); border-bottom:1px solid var(--line); }
+  header b { color:var(--cyan); } header .s { color:var(--dim); white-space:nowrap; }
+  header .tb { flex:1; min-width:0; display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; }
   header button { background:var(--btn); color:var(--fg); border:1px solid var(--line); border-radius:4px; padding:2px 7px; cursor:pointer; font:inherit; font-size:12px; white-space:nowrap; }
   header button:hover { border-color:var(--cyan); color:var(--cyan); }
   .connbadge { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--dim); white-space:nowrap; }
@@ -49,7 +49,7 @@
   .edge { stroke:#3a4658; stroke-width:1.2; marker-end:url(#arrow); }
   .edge.hi { stroke:var(--cyan); stroke-width:2; } .edge.hv:not(.hi) { stroke:var(--fg); } .edge.rel { stroke:var(--yellow); stroke-width:2; } .edge.hv.rel:not(.hi) { stroke:var(--yellow); }
   .elabel { fill:#9aa7b8; font-size:11px; font-weight:600; paint-order:stroke; stroke:#0d1116; stroke-width:3px; stroke-linejoin:round; } .elabel.hi { fill:var(--cyan); } .elabel.hv { font-size:13px; } .elabel.hv:not(.hi) { fill:var(--fg); } .elabel.rel { fill:var(--yellow); } .elabel.hv.rel:not(.hi) { fill:var(--yellow); }
-  .gnode { cursor:grab; } .gnode.dim { opacity:.24; } .gnode text { fill:var(--fg); font-size:11px; pointer-events:none; }
+  .gnode { cursor:grab; } .gnode.dim text { opacity:.3; } .gnode.dim rect, .gnode.dim ellipse, .gnode.dim polygon { stroke-opacity:.3; } .gnode text { fill:var(--fg); font-size:11px; pointer-events:none; }
   .gnode.node rect { fill:var(--btn); stroke:#3a4658; rx:5; } .gnode.node.hi rect { stroke:var(--cyan); fill:var(--sel); } .gnode.node.rel-pub rect { stroke:var(--green); fill:var(--sel); } .gnode.node.rel-sub rect { stroke:var(--cyan); fill:var(--sel); }
   .gnode.topic ellipse { fill:#14202b; stroke:#3f5266; } .gnode.topic.hi ellipse { stroke:var(--cyan); fill:#1d2f3f; } .gnode.topic text { fill:var(--cyan); font-size:10px; }
   .gnode.service polygon { fill:#141d2b; stroke:var(--blue); } .gnode.service.hi polygon { fill:#1d2740; stroke:var(--cyan); } .gnode.service text { fill:var(--blue); font-size:10px; }
@@ -65,7 +65,8 @@
   #gctrl .seg button.on { background:var(--sel); color:var(--cyan); border-color:var(--cyan); }
   #gctrl label { display:inline-flex; gap:3px; align-items:center; cursor:pointer; }
   #right .box { padding:8px 10px; border-bottom:1px solid var(--line); }
-  #val { white-space:pre-wrap; color:var(--dim); font-size:12px; max-height:36vh; overflow:auto; }
+  #val { white-space:pre-wrap; color:var(--dim); font-size:12px; max-height:22vh; overflow:auto; }
+  #gauge { height:120px; }
   canvas { width:100%; height:150px; display:block; background:var(--bg2); border:1px solid var(--line); border-radius:4px; }
   .fields label { display:inline-flex; gap:4px; align-items:center; margin:2px 6px 2px 0; color:var(--dim); cursor:pointer; }
   .hint { color:var(--dim); font-size:11px; } .legend { position:absolute; bottom:8px; left:10px; color:var(--dim); font-size:11px; }
