@@ -17,7 +17,7 @@ sh run.sh        # Linux
 
 → http://localhost:8080 을 연다. 툴바 **🔌 rosbridge**(단축키 `R`)에서 보드 IP 를 넣으면 붙는다.
 
-`run.cmd` / `run.sh` 는 백엔드(`node backend/server.js`)를 재시작 루프로 돌린다. rosbridge 대상을 바꾸면 백엔드가 스스로 종료하고 루프가 새 대상으로 다시 띄운다.
+`run.cmd` / `run.sh` 는 백엔드(`node backend/server.js`)가 죽으면 다시 띄우는 재시작 루프다. `npm run web` 으로 바로 띄워도 된다.
 
 ### 보드 쪽 준비
 
@@ -37,7 +37,7 @@ ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 ![rosbridge 대상](docs/rosbridge.png)
 
 - IP 만 넣으면 `ws://IP:9090` 으로 저장된다. `ws://host:port` 를 그대로 넣어도 된다.
-- **저장 후 재시작** — 백엔드가 재시작되고 약 5초 뒤 페이지가 자동 새로고침된다.
+- **저장 후 연결** — 백엔드가 프로세스를 내리지 않고 새 대상으로 다시 연결하고, 페이지가 자동 새로고침된다.
 - **로컬로 복귀** — 저장값을 지우고 기본값(`ws://localhost:9090`, ROS2 는 `9091`)으로 돌아간다.
 - 저장 위치는 `~/.rdash_rosbridge_url` 이고, 환경변수 `RDASH_ROSBRIDGE_URL` 보다 우선한다.
 - 헤더 왼쪽에 `ROS1 · <접속 호스트>` 가 표시된다.
@@ -189,7 +189,7 @@ npm start      # TUI + 웹 백엔드를 함께 띄움
  ↑↓ move | Enter select | p plot | c conn | t tf | b marks | ? help | q quit
 ```
 
-**원격 rosbridge 접속** — `D` 를 누르면 ROS 환경 창에 rosbridge 대상 입력칸이 나온다. 웹과 똑같이 IP 만 넣고 Enter 하면 `ws://IP:9090` 으로 저장되고 백엔드가 새 대상으로 재시작된다. 비우고 Enter 하면 로컬로 돌아간다. 현재 대상은 상단 환경 줄에 `rb:<host:port>` 로 표시된다. 시작할 때부터 지정하려면 `RDASH_ROSBRIDGE_URL=ws://IP:9090 npm start`.
+**원격 rosbridge 접속** — `D` 를 누르면 ROS 환경 창에 rosbridge 대상 입력칸이 나온다. 웹과 똑같이 IP 만 넣고 Enter 하면 `ws://IP:9090` 으로 저장되고 백엔드가 새 대상으로 다시 연결한다. 비우고 Enter 하면 로컬로 돌아간다. 현재 대상은 상단 환경 줄에 `rb:<host:port>` 로 표시된다. 시작할 때부터 지정하려면 `RDASH_ROSBRIDGE_URL=ws://IP:9090 npm start`.
 
 ROS 가 없는 PC(Windows 등)에서 띄울 땐 `RDASH_NO_AUTOPIP=1` 로 파이썬 패키지 자동 설치를 끈다.
 

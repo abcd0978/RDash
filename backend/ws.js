@@ -2,7 +2,7 @@
 // 프레임: 텍스트 {"i":id,"d":line}  ·  바이너리 [uint32 id][uint32 mode][float32 xyzc...](클라우드).
 import { WebSocketServer } from 'ws';
 import { be } from './ros.js';
-import { pipeLines, pipeBlocks, pipeRtsp } from './http.js';
+import { pipeLines, pipeRtsp } from './http.js';
 import { rbTelemetryCore, rbEchoOff, rbCloudOff } from './telemetry.js';
 
 export function attachWebSocket(server) {
@@ -38,8 +38,6 @@ function wsStart(ws, m) {
   };
   let child = null, off = null;
   const map = {
-    rosout: () => (child = pipeBlocks(be.rosout(), txt)),
-    diagnostics: () => (child = pipeBlocks(be.diagnostics(), txt)),
     bw: () => t && (child = pipeLines(be.bandwidth(t), txt)),   // 토픽 대역폭(rostopic bw) — 줄 단위
 
     markerstream: () => t && (child = pipeLines(be.markerBridge(t), txt)),
@@ -61,6 +59,7 @@ function wsStart(ws, m) {
   // 실데이터로 넘어가며, rb.subscribe 는 준비 전 요청을 큐에 넣어 open 때 flush + 재연결 때 재구독한다.
   if (stream === 'events') off = rbTelemetryCore(txt);
   else if (stream === 'echo') { if (t) off = rbEchoOff(t, txt, params.type); }
+  else if (stream === 'rosout' || stream === 'diagnostics') off = rbEchoOff('/' + stream, txt);   // CLI echo 대신 rosbridge — 원격 백엔드엔 ROS CLI 가 없다
   else if (stream === 'cloudstream') { if (t) off = rbCloudOff(t, bin); }   // rosbridge 구독 → 바이너리(원격 rosbridge 환경엔 파이썬 브리지가 못 돈다)
   else if (map[stream]) map[stream]();
   return {

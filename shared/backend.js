@@ -23,8 +23,6 @@ export class Backend {
 
   // rosapi 로는 못 하는 것들 — 백엔드 호스트의 ROS CLI 로.
   bandwidth(topic) { return bwCmd(this.ver, topic); }   // 메시지 바이트 크기를 rosapi 가 모른다
-  rosout() { return this.ver === '2' ? 'stdbuf -oL ros2 topic echo /rosout 2>/dev/null' : 'stdbuf -oL rostopic echo /rosout 2>/dev/null'; }
-  diagnostics() { return this.ver === '2' ? 'stdbuf -oL ros2 topic echo /diagnostics 2>/dev/null' : 'stdbuf -oL rostopic echo /diagnostics 2>/dev/null'; }
   msgDef(ty) { return msgDefCmd(this.ver, ty); }
   proto(kind, name, ty) { return protoCmd(this.ver, kind, name, ty); }   // kind: 'topic'|'service' — 호출측이 지정
   // 액션 타입 조회 — /rosapi/action_type 이 이 환경엔 없어(검증됨) `ros2 action list -t` 출력("NAME [TYPE]")에서 파싱한다. ROS1 actionlib 은 대응 원라이너가 없어 범위 밖.

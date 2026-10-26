@@ -16,7 +16,7 @@ let gMin = Infinity, gMax = -Infinity, gKey = null;   // 게이지 자동 레인
 (function injectGauge() {
   const r = $('#right');
   if (!r) return;
-  r.append(el('div', { class: 'sec' }, '게이지 (첫 선택 필드)'), el('div', { class: 'box' }, el('canvas', { id: 'gauge', width: 300, height: 120 })));
+  r.append(el('div', { class: 'sec plotsec' }, '게이지 (첫 선택 필드)'), el('div', { class: 'box plotsec' }, el('canvas', { id: 'gauge', width: 300, height: 120 })));
 })();
 
 // echo 스트림 종료 — 선택 변경 시 진행 중이던 구독을 닫는다.
@@ -29,6 +29,7 @@ export function clearNonTopicSelection(it) {
   $('#valtitle').textContent = `${kindIcon(it.kind)} ${it.name}`;
   stopEcho();
   $('#val').textContent = '';
+  $('#right').classList.add('notopic');   // 플롯·게이지는 토픽에서만 의미가 있다
 }
 
 // 사이드바에서 비-토픽 항목을 고를 때(onPick) — echo·시리즈·필드 UI 전부 리셋.
@@ -40,6 +41,7 @@ export function resetSeriesForPick(it) {
   $('#fields').innerHTML = '';
   $('#val').textContent = '';
   $('#valtitle').textContent = `${kindIcon(it.kind)} ${it.name}`;
+  $('#right').classList.add('notopic');
 }
 
 function drawGauge() {
@@ -124,6 +126,7 @@ export function leaves(text) {
 
 export function selectTopic(name) {
   $('#valtitle').textContent = `${kindIcon('topic')} ${name}`;
+  $('#right').classList.remove('notopic');
   state.sel = name;
   renderSidebar();
   renderValActs();

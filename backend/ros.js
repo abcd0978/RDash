@@ -11,9 +11,6 @@ import { ensureRosbridgePkg } from '../shared/sysdeps.js';
 export { VER };   // 기존에 './ros.js' 에서 VER 을 받던 곳들 유지 — 감지 자체는 shared/ver.js 로 옮겼다
 export const be = makeBackend(VER);
 
-// rosbridge 포트는 URL 에서 뽑는다 — 박아 넣으면 RDASH_ROSBRIDGE_URL 을 바꿨을 때 엉뚱한 포트를 본다.
-const RB_PORT = Number((be.url.match(/:(\d+)/) || [])[1]) || 9090;
-const RB_LOCAL = /(\/\/|@)(localhost|127\.0\.0\.1)(:|\/|$)/.test(be.url);
 const MASTER_PORT = Number((process.env.ROS_MASTER_URI || '').match(/:(\d+)/)?.[1]) || 11311;   // ROS1 전용
 
 // 포트가 열려 있나 — net 으로 직접 찌른다.
@@ -53,21 +50,24 @@ function rbRegistered() {
 // ROS1 은 마스터가 뜬 뒤에만 — 안 그러면 roslaunch 가 자기 마스터를 띄워 경쟁한다. ROS2 엔 마스터가 없어 이 검사가 없다.
 let rbProc = null;
 async function ensureRosbridge() {
-  if (!RB_LOCAL) return;                                  // 원격 rosbridge 는 우리가 띄우지 않는다
+  // 매 틱 URL 에서 다시 뽑는다 — 실행 중에 대상이 바뀔 수 있다(POST /api/rosbridge)
+  const rbPort = Number((be.url.match(/:(\d+)/) || [])[1]) || 9090;
+  const is_rb_local = /(\/\/|@)(localhost|127\.0\.0\.1)(:|\/|$)/.test(be.url);
+  if (!is_rb_local) return;                                  // 원격 rosbridge 는 우리가 띄우지 않는다
   if (VER !== '2' && !(await tcpOpen(MASTER_PORT))) return;   // ROS1: 마스터 대기
-  if (VER !== '2' && (await tcpOpen(RB_PORT)) && !(await rbRegistered())) {
+  if (VER !== '2' && (await tcpOpen(rbPort)) && !(await rbRegistered())) {
     // 고아 rosbridge — 포트 점유자를 SIGINT 로 정리하고 다음 틱(5s)에 재기동
     if (rbProc) { try { rbProc.kill('SIGINT'); } catch { /* */ } rbProc = null; }
-    else spawn('bash', ['-c', `fuser -k -INT ${RB_PORT}/tcp`], { stdio: 'ignore' });
+    else spawn('bash', ['-c', `fuser -k -INT ${rbPort}/tcp`], { stdio: 'ignore' });
     return;
   }
   if (rbProc && rbProc.exitCode === null) return;         // 기동 중
-  if (await tcpOpen(RB_PORT)) return;                     // 이미 떠 있음(공유)
+  if (await tcpOpen(rbPort)) return;                     // 이미 떠 있음(공유)
   // 포트를 반드시 넘긴다. 안 넘기면 launch 파일 기본값(9090)에 바인딩하는데, 우리가 붙는 주소는
   // RDASH_ROSBRIDGE_URL 이라 포트를 바꾼 순간 "9090 에 띄우고 9091 에 붙는" 상태가 되어 영영 못 붙는다.
   // 컨테이너를 host 네트워크로 여러 개 띄우면(같은 네트워크 네임스페이스) 9090 이 하나뿐이라 이게 실제로 필요하다.
-  const cmd = VER === '2' ? `ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=${RB_PORT}`
-                          : `roslaunch rosbridge_server rosbridge_websocket.launch port:=${RB_PORT}`;
+  const cmd = VER === '2' ? `ros2 launch rosbridge_server rosbridge_websocket_launch.xml port:=${rbPort}`
+                          : `roslaunch rosbridge_server rosbridge_websocket.launch port:=${rbPort}`;
   // 루프백 강제(ROS1) — 전부 한 머신에 있을 때 호스트명 해석 실패를 피한다. 다른 머신이면 RDASH_LOOPBACK=0.
   const ros1Net = (VER === '2' || process.env.RDASH_LOOPBACK === '0')
     ? '' : 'unset ROS_HOSTNAME; export ROS_IP=${ROS_IP:-127.0.0.1}; ';

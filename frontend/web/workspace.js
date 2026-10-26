@@ -344,11 +344,12 @@ function makeGraph(host, cfg, ctx) {
     const g = buildGraph(), W = host.clientWidth || 400, H = host.clientHeight || 300, ids = [...g.ents.keys()];
     for (const id of ids) if (!P.has(id)) P.set(id, { x: W / 2 + (Math.random() - .5) * W * .6, y: H / 2 + (Math.random() - .5) * H * .6 });
     for (const id of [...P.keys()]) if (!g.ents.has(id)) P.delete(id);
+    const rep = 0.012 * (Math.min(W, H) / 4) ** 2;   // 척력을 패널 크기에 맞춘다 — 고정값이면 작은 패널에서 노드가 가장자리로 밀려 붙는다
     for (let it = 0; it < 90; it++) {
       for (const a of ids) {
         const pa = P.get(a);
         let fx = 0, fy = 0;
-        for (const b of ids) { if (a === b) continue; const pb = P.get(b); let dx = pa.x - pb.x, dy = pa.y - pb.y; let d2 = dx * dx + dy * dy || 1; const f = 1400 / d2; fx += dx * f; fy += dy * f; }
+        for (const b of ids) { if (a === b) continue; const pb = P.get(b); let dx = pa.x - pb.x, dy = pa.y - pb.y; let d2 = dx * dx + dy * dy || 1; const f = rep / d2; fx += dx * f; fy += dy * f; }
         fx += (W / 2 - pa.x) * 0.012;
         fy += (H / 2 - pa.y) * 0.012;
         pa.x += Math.max(-6, Math.min(6, fx));

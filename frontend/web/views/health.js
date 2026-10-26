@@ -9,6 +9,9 @@ import { Trigger, trigArm, trigDisarm } from '../lib/trigger.js';
 import { onPick } from '../panels/sidebar.js';
 import { refreshGraphNow } from './graph.js';
 
+const NO_PROC = '백엔드 PC 에서 노드 프로세스를 찾지 못했습니다 — 원격 rosbridge 로 붙어 있으면 CPU/RSS 는 볼 수 없습니다.';
+const isSelf = (n) => /^\/(rosbridge_websocket|rosapi)(_|$)/.test(n);   // RDash 자신의 연결 — kill 하면 대시보드가 끊긴다
+
 export function doctor() {
   const wrap = el('div', {});
   openModal('🩺 Doctor — 시스템 건강', wrap, () => {});
@@ -105,12 +108,20 @@ export function procmon() {
       if (!m) return;
       const [, cpu, name, pid, rss, thr] = m;
       seen.add(name);
+      const is_self = isSelf(name);
+      if (is_self) {
+        tbl.append(el('tr', {}, el('td', {}, cpu), el('td', { style: 'color:var(--dim)' }, name), el('td', {}, pid), el('td', {}, rss + ' MB'), el('td', {}, thr), el('td', {})));
+        return;
+      }
       const kill = el('button', { class: 'act', onclick: async () => { const rr = await post('/api/killnode', { name }); toast('kill ' + name + ': ' + rr.out); await refreshGraphNow(); await draw(); setTimeout(refreshGraphNow, 800); } }, 'kill');
       const rest = el('button', { class: 'act', onclick: () => post('/api/restart', { name }).then(() => toast('restart ' + name)) }, 'restart');
       tbl.append(el('tr', {}, el('td', { style: 'color:' + (parseFloat(cpu) > 50 ? 'var(--red)' : parseFloat(cpu) > 20 ? 'var(--yellow)' : 'var(--fg)') }, cpu), el('td', { style: 'color:var(--green)' }, name), el('td', {}, pid), el('td', {}, rss + ' MB'), el('td', {}, thr), el('td', {}, kill, ' ', rest)));
     });
     // 프로세스를 못 찾은 노드도 표시(값 ?) + 액션 제공
-    nodes().filter((n) => !seen.has(n)).forEach((name) => {
+    if (seen.size === 0) {
+      wrap.append(el('div', { class: 'hint', style: 'margin-bottom:6px;color:var(--yellow)' }, NO_PROC));
+    }
+    nodes().filter((n) => !seen.has(n) && !isSelf(n)).forEach((name) => {
       const kill = el('button', { class: 'act', onclick: async () => { await post('/api/killnode', { name }); toast('kill ' + name); await refreshGraphNow(); await draw(); setTimeout(refreshGraphNow, 800); } }, 'kill');
       const rest = el('button', { class: 'act', onclick: () => post('/api/restart', { name }).then(() => toast('restart ' + name)) }, 'restart');
       tbl.append(el('tr', { style: 'opacity:.6' }, el('td', {}, '?'), el('td', { style: 'color:var(--green)' }, name), el('td', {}, '—'), el('td', {}, '—'), el('td', {}, '—'), el('td', {}, kill, ' ', rest)));
@@ -131,7 +142,13 @@ export async function overview() {
   if (stale.length) wrap.append(el('p', { style: 'color:var(--red)' }, '⚠ stale >3s: ' + stale.map((t) => t.name).join(', ')));
   const res = el('pre', { class: 'out' }, '리소스 수집 중…');
   wrap.append(el('h4', {}, '노드 리소스'), res);
-  post('/api/resource', { nodes: nodes.map((n) => n.name) }).then((r) => { res.textContent = r.out; });
+  post('/api/resource', { nodes: nodes.map((n) => n.name) }).then((r) => {
+    const is_proc_found = (r.out || '').split('\n').some((l) => l.trim() && !l.startsWith('('));
+    res.textContent = NO_PROC;
+    if (is_proc_found) {
+      res.textContent = r.out;
+    }
+  });
   const tbl = el('table', { class: 'tbl' });
   tbl.append(el('tr', {}, el('th', {}, '토픽'), el('th', {}, 'Hz')));
   byRate.slice(0, 12).forEach((t) => tbl.append(el('tr', {}, el('td', {}, t.name), el('td', {}, String(t.hz)))));

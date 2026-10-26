@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from '../react.js';
 import { openStream } from '../lib/api.js';
 
+const ROS1_LOG_LEVEL = { 1: 10, 2: 20, 4: 30, 8: 40, 16: 50 };
+
 export function useRosout(active, ver) {
   const [lines, setLines] = useState([]);
   const bufRef = useRef([]);
@@ -15,7 +17,13 @@ export function useRosout(active, ver) {
       const lvl = /(?:^|\n)\s*level:\s*(\d+)/.exec(block);
       const nm = /(?:^|\n)\s*name:\s*["']?([^\n"']+)/.exec(block);
       const ms = /(?:^|\n)\s*msg:\s*["']?(.*)/.exec(block);
-      bufRef.current.push({ level: lvl ? +lvl[1] : 0, name: nm ? nm[1].trim() : '?', msg: ms ? ms[1].replace(/["']\s*$/, '').trim() : '' });
+      const n = lvl ? +lvl[1] : 0;
+      let level = ROS1_LOG_LEVEL[n] || 0;   // ROS1 Log 레벨(1/2/4/8/16) → ROS2 단위
+      const is_ros2 = (ver === '2');
+      if (is_ros2) {
+        level = n;
+      }
+      bufRef.current.push({ level, name: nm ? nm[1].trim() : '?', msg: ms ? ms[1].replace(/["']\s*$/, '').trim() : '' });
       if (bufRef.current.length > 1200) bufRef.current.shift();
       if (!pending) { pending = true; setTimeout(flush, 120); }   // 리렌더 폭주 방지
     });

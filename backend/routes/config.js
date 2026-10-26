@@ -4,11 +4,12 @@ import { loadBookmarks, saveBookmarks, activePreset, presetNames, savePreset } f
 import { loadBaseline, saveBaseline } from '../../shared/baseline.js';
 import { loadOverlays, saveOverlays, discoverOverlays } from '../../shared/overlays.js';
 import { restartRosbridge, be } from '../ros.js';
+import { rbRetarget } from '../telemetry.js';
 import { rosbridgeOverride, setRosbridgeOverride } from '../../shared/ports.js';
 
 const router = Router();
 
-// rosbridge 대상 전환 — 저장 후 exit(1)로 죽어 systemd(Restart=on-failure)가 새 대상으로 재기동한다
+// rosbridge 대상 전환 — 저장 후 프로세스 안에서 새 대상으로 재연결한다(재시작 루프 없이 띄워도 동작)
 router.get('/api/rosbridge', (req, res) => res.json({ url: be.url, override: rosbridgeOverride() }));
 router.post('/api/rosbridge', (req, res) => {
   let u = String(req.body.url || '').trim();
@@ -21,8 +22,8 @@ router.post('/api/rosbridge', (req, res) => {
     u = u + ':9090';
   }
   setRosbridgeOverride(u);
-  res.json({ ok: true, url: u });
-  setTimeout(() => process.exit(1), 300);
+  rbRetarget(be.url);   // 비우면 env·기본값으로 돌아가므로 u 가 아니라 be.url
+  res.json({ ok: true, url: be.url });
 });
 
 // 기준선(Baseline) — 프로파일은 브라우저가 계산해 저장, diff 도 브라우저에서.

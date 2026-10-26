@@ -6,6 +6,8 @@ import ffmpegPath from 'ffmpeg-static';
 import { rosSpawn } from '../shared/ros.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const NO_ROS_CLI = '이 기능은 백엔드 PC 의 ROS CLI·파이썬이 필요합니다 — 원격 rosbridge 로 붙어 있으면 쓸 수 없습니다.';
+const TOOL_MISSING_RE = /Python was not found|command not found|: not found/;
 
 // ── 유틸 ──────────────────────────────────────────────────────────────────
 export function sse(res) {
@@ -19,7 +21,14 @@ export function runOnce(cmd) {
     let out = '';
     if (p.stderr) p.stderr.on('data', (d) => { out += d.toString(); });
     p.stdout.on('data', (d) => { out += d.toString(); });
-    p.on('close', () => resolve(out));
+    p.on('close', () => {
+      const is_tool_missing = TOOL_MISSING_RE.test(out);
+      if (is_tool_missing) {
+        resolve(NO_ROS_CLI);
+        return;
+      }
+      resolve(out);
+    });
     p.on('error', () => resolve(out || '(exec error)'));
   });
 }

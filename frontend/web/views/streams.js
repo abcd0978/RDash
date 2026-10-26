@@ -3,6 +3,9 @@
 import { el } from '../lib/dom.js';
 import { openModal, setModalSub } from '../lib/modal.js';
 import { openStream } from '../lib/stream.js';
+import { state } from '../lib/state.js';
+
+const ROS1_LOG_LEVEL = { 1: 10, 2: 20, 4: 30, 8: 40, 16: 50 };
 
 export function streamView(title, endpoint, parse, klass) {
   const filterInp = el('input', { placeholder: '필터…', style: 'margin-bottom:6px' });
@@ -17,7 +20,12 @@ export function streamView(title, endpoint, parse, klass) {
 export function log() {
   const L = (l) => (l >= 50 ? 'FATAL' : l >= 40 ? 'ERROR' : l >= 30 ? 'WARN' : l >= 20 ? 'INFO' : 'DEBUG'), C = (l) => (l >= 40 ? 'ERROR' : l >= 30 ? 'WARN' : 'OK');
   streamView('📜 로그 /rosout', '/rosout', (blk) => {
-    const lv = /level:\s*(\d+)/.exec(blk), nm = /name:\s*["']?([^\n"']+)/.exec(blk), ms = /msg:\s*["']?(.*)/.exec(blk), lvl = lv ? +lv[1] : 0;
+    const lv = /level:\s*(\d+)/.exec(blk), nm = /name:\s*["']?([^\n"']+)/.exec(blk), ms = /msg:\s*["']?(.*)/.exec(blk), n = lv ? +lv[1] : 0;
+    let lvl = ROS1_LOG_LEVEL[n] || 0;   // ROS1 Log 레벨(1/2/4/8/16) → ROS2 단위
+    const is_ros2 = (state.ver === '2');
+    if (is_ros2) {
+      lvl = n;
+    }
     return [{ a: L(lvl), b: (nm ? nm[1].trim() : '?') + ': ' + (ms ? ms[1].replace(/["']\s*$/, '').trim() : ''), cls: C(lvl), text: blk }];
   });
 }

@@ -15,6 +15,15 @@ export function rbEnsure() { if (!rb) { rb = new RosbridgeClient(be.url); rb.con
 export function rbCmdEnsure() { if (!rbCmd) { rbCmd = new RosbridgeClient(be.url); rbCmd.connect(); } return rbCmd; }
 rbEnsure();      // 미리 연결 시작 — 연결 전/끊김 동안 rosbridge 필요 라우트는 503
 rbCmdEnsure();
+// rosbridge 대상 전환 — 프로세스를 내리지 않고 두 연결을 새 주소로 다시 붙인다. 구독은 RosbridgeClient 가 재연결 때 다시 보낸다.
+export function rbRetarget(url) {
+  for (const c of [rb, rbCmd]) {
+    c.url = url;
+    c._kill('대상 변경');
+  }
+  cacheNodes = []; cacheServices = []; cacheParams = []; cacheActions = []; cacheDetails = new Map();   // 이전 대상의 그래프가 남지 않게
+  telemSnapshot = null;
+}
 export function useRb() { return !!(rb && rb.ready); }
 export function useRbCmd() { return !!(rbCmd && rbCmd.ready); }
 function rbUnavailable(res) { res.status(503).json({ error: `rosbridge unavailable: ${be.url}` }); return true; }

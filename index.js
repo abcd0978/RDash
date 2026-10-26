@@ -46,7 +46,7 @@ if (spawnBackend) {
     delete env.ROS_HOSTNAME;
   }
   let web;
-  // 백엔드가 죽으면 다시 띄운다 — rosbridge 대상 전환(POST /api/rosbridge)은 백엔드를 exit 시켜 새 대상으로 재기동한다.
+  // 백엔드가 죽으면 다시 띄운다 — TUI 가 데이터 소스를 잃은 채 남지 않게.
   const startWeb = () => {
     web = spawn(process.execPath, [...process.execArgv, join(here, 'backend', 'server.js')],
       { stdio: 'ignore', env });                        // stdio 를 삼켜 대체 화면 오염 방지

@@ -3,12 +3,12 @@
 // 예전엔 여기서 ROS_DOMAIN_ID 를 바꿔 다른 도메인의 그래프를 엿볼 수 있었다. 지금은 ROS 에 붙는 주체가
 // 백엔드라, TUI 가 자기 환경변수를 바꿔봐야 아무 효과가 없다. 도메인은 백엔드를 띄울 때 정해진다.
 // (도메인 "목록"은 애초에 못 보여준다 — DDS 는 어떤 도메인이 존재하는지 알려주지 않는다. 쓰는 값만 알 수 있다.)
-// rosbridge 대상은 웹 🔌 rosbridge 와 같은 POST /api/rosbridge 로 바꾼다 — 백엔드가 재시작되고 index.js 가 다시 띄운다.
+// rosbridge 대상은 웹 🔌 rosbridge 와 같은 POST /api/rosbridge 로 바꾼다 — 백엔드가 프로세스 안에서 새 대상으로 재연결한다.
 import { h, useState, useEffect } from '../../react.js';
 import { Box, Text, useInput } from 'ink';
 import { useDashboard } from '../../store.js';
 import { typable } from '../../../../shared/util.js';
-import { api, post, waitForBackend } from '../../lib/api.js';
+import { api, post } from '../../lib/api.js';
 
 export function DomainEdit() {
   const d = useDashboard();
@@ -18,10 +18,8 @@ export function DomainEdit() {
   useEffect(() => { api('/api/rosbridge').then((r) => { if (r) setValue(r.override || ''); }); }, []);
 
   const save = async () => {
-    setMsg('저장됨 — 백엔드 재시작 중…');
+    setMsg('저장됨 — 새 대상으로 연결 중…');
     await post('/api/rosbridge', { url: value });
-    await new Promise((r) => setTimeout(r, 1500));   // 백엔드가 exit 할 때까지 — 안 기다리면 죽기 직전 백엔드에 응답받는다
-    await waitForBackend(20000);
     const o = await api('/api/env');
     if (o) d.setEnv(o);
     d.setDomainEdit(null);
@@ -45,5 +43,5 @@ export function DomainEdit() {
     h(Box, null,
       h(Text, { color: 'yellow' }, ' rosbridge 대상 = '),
       h(Text, { backgroundColor: 'yellow', color: 'black' }, `${value} `)),
-    h(Text, { dimColor: true }, msg || ' IP만 입력하면 ws://IP:9090 · 비우고 Enter 면 로컬로 복귀 · Enter 저장 후 재시작  Esc 닫기'));
+    h(Text, { dimColor: true }, msg || ' IP만 입력하면 ws://IP:9090 · 비우고 Enter 면 로컬로 복귀 · Enter 저장 후 연결  Esc 닫기'));
 }

@@ -121,8 +121,12 @@ export function teleop() {
   // 텔레옵 대상 후보 — Twist/TwistStamped 를 구독하는 cmd_vel 계열 토픽 자동 감지.
   const cand = state.items.filter((i) => i.kind === 'topic' && /Twist/.test(i.ty || '')).map((i) => i.name);
   const tyOf = (name) => { const it = byName(name); return /TwistStamped/.test(it && it.ty || '') ? 'twiststamped' : 'twist'; };
-  // 기본 토픽: turtlesim(/turtle1/cmd_vel) > 감지된 첫 후보 > /cmd_vel.
-  const def = cand.includes('/turtle1/cmd_vel') ? '/turtle1/cmd_vel' : (cand[0] || '/cmd_vel');
+  // 기본 토픽: turtlesim(/turtle1/cmd_vel) > 이름에 cmd_vel 이 든 후보 > /cmd_vel. Twist 타입이라도 velocity_local 같은 출력 토픽은 고르지 않는다.
+  let def = cand.find((n) => /cmd_vel/.test(n)) || '/cmd_vel';
+  const is_turtlesim = cand.includes('/turtle1/cmd_vel');
+  if (is_turtlesim) {
+    def = '/turtle1/cmd_vel';
+  }
   const dl = el('datalist', { id: 'teleoptopics' });
   cand.forEach((t) => dl.append(el('option', { value: t })));
   const topic = el('input', { value: def, list: 'teleoptopics', style: 'width:190px' });
