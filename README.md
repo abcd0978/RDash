@@ -1,16 +1,181 @@
 # RDash
 
-## Quick Start (Windows · 원격 rosbridge)
+브라우저에서 보는 **ROS1 / ROS2 대시보드**. 노드·토픽 그래프, 실시간 값·플롯, 3D 포인트클라우드, GPS 지도, 그래프 자동 진단까지 한 화면에서 본다.
+로봇(보드)에는 `rosbridge_server` 만 떠 있으면 되고, RDash 는 내 PC(Windows 포함)에서 돌린다.
+
+> rqt_graph + rqt_topic + PlotJuggler + RViz 일부를 웹 하나로 묶은 것에 가깝다. X11·Qt 없이 브라우저만 있으면 된다.
+
+![메인 화면](docs/main.png)
+
+## Quick Start
 
 ```
-npm install && run.cmd
+npm install
+run.cmd          # Windows
+sh run.sh        # Linux
 ```
 
-→ http://localhost:8080. 대상 rosbridge는 툴바 🔌 rosbridge(단축키 R)에서 IP만 입력하면 된다 (`ws://IP:9090` 으로 저장, 재시작 루프가 자동 반영). Linux 는 `run.cmd` 대신 `sh run.sh`.
+→ http://localhost:8080 을 연다. 툴바 **🔌 rosbridge**(단축키 `R`)에서 보드 IP 를 넣으면 붙는다.
 
-A terminal dashboard (TUI) for browsing **ROS topics / services / params / nodes** with live values — for **ROS1 and ROS2**. Built with [React Ink](https://github.com/vadimdemedes/ink).
+`run.cmd` / `run.sh` 는 백엔드(`node backend/server.js`)를 재시작 루프로 돌린다. rosbridge 대상을 바꾸면 백엔드가 스스로 종료하고 루프가 새 대상으로 다시 띄운다.
 
-> **What it's like:** the closest analogue is **rqt** (`rqt_graph` + `rqt_topic` + `rqt_reconfigure` + `rqt_service_caller`) — graph *introspection **and** control* — but in a **single terminal**: headless / SSH-friendly, no X11 or Qt. It ships an optional **browser GUI** (`npm start`) that covers **rqt_graph + PlotJuggler + parts of Foxglove/RViz** territory — node/topic graph, a multi-plot lab, camera/GPS/pointcloud views — and can drive a **remote** robot over rosbridge. See [Web UI](#web-ui-localhost).
+### 보드 쪽 준비
+
+보드에서 rosbridge 가 9090 으로 떠 있어야 한다.
+
+```bash
+# ROS1
+roslaunch rosbridge_server rosbridge_websocket.launch
+# ROS2
+ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+```
+
+커스텀 메시지(예: `livox_ros_driver2/CustomMsg`)를 보려면 rosbridge 를 띄우는 셸에서 해당 워크스페이스 `devel/setup.bash` 까지 source 되어 있어야 한다.
+
+## rosbridge 대상 전환
+
+![rosbridge 대상](docs/rosbridge.png)
+
+- IP 만 넣으면 `ws://IP:9090` 으로 저장된다. `ws://host:port` 를 그대로 넣어도 된다.
+- **저장 후 재시작** — 백엔드가 재시작되고 약 5초 뒤 페이지가 자동 새로고침된다.
+- **로컬로 복귀** — 저장값을 지우고 기본값(`ws://localhost:9090`, ROS2 는 `9091`)으로 돌아간다.
+- 저장 위치는 `~/.rdash_rosbridge_url` 이고, 환경변수 `RDASH_ROSBRIDGE_URL` 보다 우선한다.
+- 헤더 왼쪽에 `ROS1 · <접속 호스트>` 가 표시된다.
+
+## 화면 구성
+
+| 영역 | 내용 |
+|---|---|
+| 헤더 | ROS 버전·접속 호스트, 노드/토픽/서비스 수, 툴바, 시계, ▦ 워크스페이스, 🌙 테마, 연결 상태(연결됨 / 재연결 중 / 끊김) |
+| 왼쪽 트리 | 토픽·노드·서비스·파라미터를 `/` 단위로 접는 트리. 토픽 옆 숫자는 실측 Hz, `⇢` 는 구독자 없음(dead-end). 익명 CLI 노드 숨김 체크박스 |
+| 가운데 그래프 | rqt_graph 식 노드 그래프 (아래 설명) |
+| 오른쪽 인스펙터 | 선택 항목 정보·실시간 값·미니 플롯·게이지 |
+
+### 노드 그래프
+
+- **노드** / **노드+토픽** 두 모드. 노드+토픽 모드는 토픽을 타원으로 따로 그려 발행(초록)·구독(청록) 엣지를 보여준다.
+- 서비스는 파란 마름모, 액션은 보라 육각형.
+- 필터: 서비스 / 액션 / tf / debug(`/rosout` 등) / dead-end / CLI·도구 노드(`rostopic_*` 같은 익명 노드, 기본 숨김).
+- 휠 줌, 빈 곳 드래그 팬, 노드 드래그, 클릭 강조, 엣지 호버 시 토픽 목록. **간격** 슬라이더로 노드 사이를 벌린다.
+
+### 인스펙터
+
+트리나 그래프에서 무엇이든 클릭하면 오른쪽에 바로 나온다.
+
+- **토픽** — 타입, Hz·age, 발행자/구독자(클릭하면 이동), 실시간 메시지 값.
+  버튼: `publish`(필드 폼) · `states`(값 전이 타임라인) · `msg def` · `QoS` · `connections` · `mark`.
+- **플롯 (숫자 필드)** — 메시지의 숫자 필드를 체크하면 바로 아래 미니 플롯에 그려진다. 첫 번째로 고른 필드는 **게이지**에도 나온다.
+- **노드** — 발행/구독 토픽 목록, kill·재시작, 파라미터.
+- **서비스** — 제공 노드, 요청 인자를 넣어 call.
+- **파라미터** — 현재 값, 바로 set.
+
+선택 상태에서 쓰는 키: `m` msg def · `Q` QoS · `c` connections · `o` 노드 파라미터 · `x` 동작(publish / call / kill / set).
+
+## 툴바
+
+괄호 안은 단축키. 입력창에 포커스가 없을 때 동작한다. `Esc` 로 창을 닫는다.
+
+| 버튼 | 기능 |
+|---|---|
+| 📈 PlotLab (`E`) | PlotJuggler 식 다중 플롯 |
+| 🩺 Doctor (`H`) | 그래프 자동 진단 |
+| 📌 Baseline (`K`) | 정상 상태 저장 후 현재와 비교 |
+| 🔴 Trigger (`A`) | 조건 충족 시 자동 스냅샷 / rosbag |
+| 🎮 Teleop (`g`) | 키보드로 Twist 발행 |
+| 북마크 (`b`) | 자주 쓰는 셸 명령 저장·실행 |
+| Jobs (`J`) | 실행 중인 작업(rosbag·북마크 명령 등) 출력 보기·종료 |
+| 로그 (`L`) | `/rosout` 실시간 로그, 레벨·문자열 필터 |
+| 진단 (`v`) | `/diagnostics` 상태별 묶음 |
+| 개요 (`O`) | 노드 CPU/RSS + 토픽 Hz + stale 요약 |
+| 📊 프로세스 (`P`) | 노드별 CPU% / RSS / 스레드, kill·재시작 |
+| 🗺 Map (`M`) | NavSatFix 위경도 궤적 |
+| 🖼 Cam (`I`) | 카메라 이미지 (+ 검출 박스·CameraInfo 오버레이) |
+| 🧊 3D (`C`) | RViz 식 3D 씬 |
+| TF (`t`) | TF 트리 |
+| ⚙ 오버레이 (`W`) | source 할 ROS 워크스페이스 선택 (커스텀 메시지 타입용) |
+| 🔌 rosbridge (`R`) | 접속 대상 전환 |
+| 📺 RTSP (`V`) | RTSP 카메라 플로팅 플레이어 |
+
+### 📈 PlotLab
+
+![PlotLab](docs/plotlab.png)
+
+- 왼쪽 커브 목록에서 토픽을 펼치고 필드를 **클릭**(마지막 플롯에 추가)하거나 원하는 플롯으로 **드래그**한다.
+- `+ 플롯` 으로 플롯 추가, `≡ 세로` / `⊞ 격자` / `⊟ 3열` 배치, 각 플롯은 ⤡ 모서리로 크기 조절, ⧉ 로 별도 창 분리.
+- 모든 플롯이 **시간축과 커서를 공유**한다. 휠 줌, 드래그 팬, `follow` 로 최신 따라가기 / 멈춤, 창 길이 5·10·30초.
+- 아래 **스크럽 바**로 버퍼에 쌓인 구간을 되감아 재생(0.25~4배속).
+- 커브별 변환: 원값, n차 미분·적분, |x|, 이동평균. 플롯별 **FFT**, **XY**(위상 플롯), **ƒ 수식 커브**(`c0-c1`, `Math.hypot(c0,c1)` 등).
+- 커브마다 현재값·평균·범위 표시. `⭳ CSV` 로 전체 내보내기, 플롯별 PNG 저장.
+- `bag 경로` + `🗀 bag` 으로 rosbag 을 불러와 스크럽 바로 재생.
+
+### 🧊 3D 씬
+
+![3D 씬](docs/scene3d.png)
+
+- 왼쪽 **Displays** 패널에서 `+ 토픽 추가…` 로 여러 토픽을 동시에 띄우고, 체크박스로 숨기면 구독도 끊긴다.
+- **PointCloud2** 와 **livox `CustomMsg`** 는 rosbridge 로 직접 받는다. 색상은 높이 / intensity / RGB / 단색 자동 감지.
+- 점이 많으면 서버에서 솎고(`RDASH_CLOUD_MAXN`, 기본 30000점/프레임), 화면에서는 거리 기반 LOD 로 FPS 를 유지한다(적응형 / 거리 / 끔).
+- 카메라: Top / Front / Side / Iso 프리셋, 드래그 회전·휠 줌·우클릭 이동, WASD 이동, 고정 프레임, Follow, 직교 투영.
+- 도구: 점 조회, Publish Point(`/clicked_point`), Nav Goal(`/goal_pose`), Pose Estimate(`/initialpose`), 거리 측정.
+- Marker(Array), TF 축, LaserScan·Path·Odometry·PoseStamped·OccupancyGrid, URDF RobotModel, 인터랙티브 마커, 카메라 이미지 투영도 그린다 — 이것들은 백엔드 호스트의 파이썬 브리지를 쓴다([원격 접속 시 제약](#원격-접속-시-제약) 참고).
+
+### 🗺 Map
+
+![GPS 지도](docs/map.png)
+
+`sensor_msgs/NavSatFix` 토픽의 위경도 궤적을 그린다. 외부 지도 타일 없이 로컬에서 렌더링하므로 인터넷이 없어도 된다. 아래에 현재 위도·경도·고도와 점 수가 나온다.
+
+### 🩺 Doctor
+
+![Doctor](docs/doctor.png)
+
+현재 그래프를 한 번에 진단해 심각도순으로 보여준다. 항목을 클릭하면 그 토픽으로 이동한다.
+
+- QoS reliability / durability 불일치 (ROS2)
+- 멈춘(stale) 토픽
+- 구독자 없는 발행 (dead-end), 발행자 없는 구독
+
+### 📌 Baseline · 🔴 Trigger
+
+- **Baseline** — "정상일 때" 노드 목록·토픽 Hz·서비스를 저장해 두고, 다시 열면 현재와 비교해 사라진 노드, 없어진 토픽, 떨어진 발행 주기를 표시한다. `~/.rdash_baseline.json` 에 저장되며 TUI 와 공유한다.
+- **Trigger** — 무장해 두면 그래프 ERROR 나 `/diagnostics` ERROR 가 생겼을 때 표시한 토픽을 자동으로 스냅샷 / rosbag 으로 남긴다(쿨다운 있음).
+
+### 🎮 Teleop
+
+D-pad 또는 WASD·방향키로 속도 명령을 10Hz 로 발행한다. 선속도·각속도 조절 가능.
+대상 프리셋: turtlesim(`/turtle1/cmd_vel`), diff-drive(`/cmd_vel`), MAVROS(`/mavros/setpoint_velocity/cmd_vel`, `TwistStamped`), 직접 입력. cmd_vel 토픽과 메시지 타입(`Twist` / `TwistStamped`)은 자동 감지한다.
+
+### 📺 RTSP
+
+RTSP 카메라 주소를 넣으면 백엔드가 ffmpeg 로 fMP4 로 바꿔 브라우저에서 재생한다. 드래그·리사이즈 되는 플로팅 창이고, PiP·팝업 창 분리 후 다시 붙이기가 된다. 주소 프리셋과 저지연 모드는 저장된다. ffmpeg 는 `ffmpeg-static` 으로 같이 설치된다.
+
+### ▦ 워크스페이스
+
+여러 패널을 타일로 나눠 동시에 보는 화면(Foxglove 식). 패널을 오른쪽(⇥)·아래(⤓)로 쪼개고, 경계를 드래그해 크기를 바꾼다.
+패널 종류: 토픽 그래프, 플롯, Raw 메시지, 이미지, 3D 씬, 진단, 로그. 패널마다 토픽을 따로 고르고, 레이아웃은 브라우저에 저장된다.
+
+## 원격 접속 시 제약
+
+RDash 백엔드는 ROS 그래프·메시지를 전부 rosbridge 로 받는다. 그래서 대부분 기능은 백엔드가 어디서 돌든 동작한다.
+
+| rosbridge 만으로 동작 | 백엔드 호스트에 ROS(CLI·파이썬)가 있어야 동작 |
+|---|---|
+| 그래프·트리·인스펙터 값, 미니 플롯, PlotLab | 🖼 Cam (이미지 브리지) |
+| Map, Doctor, Baseline, Trigger(스냅샷) | 3D 의 Marker·TF·URDF·Odometry 등 (포인트클라우드는 됨) |
+| 로그(`/rosout`), 진단(`/diagnostics`) | TF 트리, msg def, 대역폭 |
+| publish, 서비스 call, Teleop | 📊 프로세스 (백엔드 호스트의 `ps` 를 본다) |
+| ROS1 파라미터 조회·설정, 노드 kill | rosbag 녹화·재생, 북마크 명령 (백엔드 호스트에서 실행) |
+| 3D 포인트클라우드, RTSP | |
+
+오른쪽 기능까지 쓰려면 RDash 를 보드(ROS 가 도는 기기)에서 직접 띄우고, 브라우저로 `http://<보드 IP>:8080` 에 접속한다.
+
+## TUI
+
+같은 백엔드를 쓰는 터미널 UI 도 있다. SSH 로만 붙을 수 있을 때 쓴다.
+
+```bash
+npm start      # TUI + 웹 백엔드를 함께 띄움
+```
 
 ```
 ╭ RDash        102 ╮ ╭ /iris/imu [topic] 99Hz            3-20/45 ↕ ╮
@@ -24,366 +189,91 @@ A terminal dashboard (TUI) for browsing **ROS topics / services / params / nodes
  ↑↓ move | Enter select | p plot | c conn | t tf | b marks | ? help | q quit
 ```
 
-## Features
-- **File-tree browser** of the ROS graph: `topics/`, `services/`, `params/`, `nodes/` (expand/collapse).
-- **Live values** on the right pane, dispatched by kind:
-  - topic → `rostopic echo` / `ros2 topic echo` (streaming)
-  - param → `rosparam get`
-  - service → `rosservice info` / `ros2 service type`
-  - node → `rosnode info` / `ros2 node info`
-- **Live Hz** per topic (incl. subscriber-only topics, marked `(sub)`), with a **mini Hz sparkline** (recent history) in the tree.
-- **Bandwidth** (bytes/s) for the selected topic (`rostopic bw` / `ros2 topic bw`), shown in the value-pane header.
-- **Fuzzy search** (`/`) to filter the tree by name — folders auto-expand to reveal matches (`Esc` clears).
-- **Freeze** the value pane (`space`) to inspect a fast-scrolling message without it moving.
-- **Plotting** (`p` on a topic): opens a native **matplotlib** window fed by the topic's echo stream (multiple windows allowed). General-purpose — works on any numeric field(s):
-  - **time** mode: raw value + **n-th derivative / integral** (`↑`/`↓` in the window; e.g. velocity→acceleration) + **FFT** spectrum. Multiple fields overlay on one time axis. A **sliding time window** (last N seconds; `+`/`-` change it by 5s) keeps the span predictable regardless of topic rate.
-  - **xy** mode (2 fields): parametric/correlation plot with equal aspect (a circular trajectory shows as a circle) + **linear regression** line & R² (toggle with `f`).
-  - **xyz** mode (3 fields): 3D trajectory.
-  - Pick fields in the picker: `space` to multi-select, `Enter` for time, `x` for spatial (2=XY, 3=3D). Requires `python3` with `numpy`/`matplotlib` and a display.
-- **Watch list** (`w`): pin numeric fields from several topics and see them all live in one panel — no windows, works headless/SSH.
-- **Message age / latency**: the tree marks topics that stopped publishing (red `⚠`); the value header shows the active topic's `header.stamp` latency (ms) or arrival age (s), color-coded — dead sensor / sync issues at a glance.
-- **Preflight / health check** (`F`): evaluate expected conditions (topic present + min Hz, node up, service up) against the live graph → ✓/✗ checklist. "Is the stack ready before arming?" Checks live in `~/.rdash_preflight.json`.
-- **Jobs manager** (`J`): every process RDash spawns (bookmarks, rosbag, plots) is tracked — view its output, kill (SIGINT/SIGKILL), or remove it. All jobs are killed on quit.
-- **Connection view** (`c`): publishers/subscribers of a topic, or a node's in/out topics. **Node graph** (`n`): a terminal rqt_graph — the selected node's publish/subscribe topology (who it talks to), or the whole-graph edge list. **TF frame tree** (`t`), **tf echo between two frames** (`T`), and **node resource monitor** (`S`, live CPU%/RSS/threads, CPU-sorted).
-- **Diagnostics & introspection** for real debugging: **log viewer** (`L`, live `/rosout` with level & text filter), **diagnostics** (`v`, `/diagnostics` aggregated by status), **message definition** (`m`, `interface show`), **QoS inspect** (`Q`, per-endpoint reliability/durability + flags the RELIABLE-vs-BEST_EFFORT mismatch that silently drops messages), and a **system overview** (`O`, "ROS htop": node CPU/RSS + topic Hz + stale + preflight). The tree also marks dead-end topics (published but no subscribers `⇢`, or vice-versa `⇠`).
-- **Param tuning panel** (`o` on a ROS2 node): list the node's parameters and set them live (edit or `+`/`-` nudge ±10%) — an rqt_reconfigure in the terminal. **Lifecycle** (`V` on a node): run managed-node transitions (configure/activate/…). **Action client**: ROS2 actions appear under `actions/`; `x` sends a goal and streams feedback into Jobs.
-- **🩺 Doctor** (`H`): a one-key **auto-diagnosis** of the whole graph — QoS reliability/durability mismatches, stale topics, dead-end publishers (no subscriber), subscribers waiting on a missing publisher — ranked by severity; `Enter` jumps to the offending topic. Something neither rqt nor RViz does, powered by data RDash already collects.
-- **📌 Baseline / regression** (`K`): `b` saves a "known-good" profile (node list, topic Hz, services); reopening diffs it against live and flags a **vanished node, disappeared topic, or collapsed publish rate** — field/CI debugging in one screen. Persisted to `~/.rdash_baseline.json` (shared with the web).
-- **🔴 Trigger recording** (`A`): arm a watchdog; when the graph goes unhealthy (a Doctor ERROR appears) it **auto-snapshots** the marked topics (cooldown-gated). Event-driven capture, on the robot.
-- **🎮 Teleop** (`W`): drive a robot over plain SSH — `W/A/S/D`/arrows publish `geometry_msgs/Twist` (a held `-r 10 Hz` publisher), `Space` stops, `+`/`-` adjust speed.
-- **Multi-select & snapshot**: mark topics with `.` (shown `*`); `R` records just those, `X` snapshots their current values to a file for a bug report. Copy the selected name to the clipboard with `y` (OSC52, works over SSH).
-- **Session memory**: expanded folders, watches, mode, and last selection are restored on the next run; the bookmark editor recalls command history with `Ctrl+P`/`Ctrl+N`.
-- **rosbag** — record (`R`) the filtered topics (or `-a`) with a live REC indicator; play (`P`) a bag by path; **A/B compare** (`B`) two bags' info side by side.
-- **Help overlay** (`?`) with categorized shortcuts, and **`Tab`** to hide the tree so the value pane spans full width.
-- **Command bookmarks** (`b`): name frequently-used shell commands (launch scripts, canned publishes like arm/disarm) and run them — by number key `1`-`9`,`0`, from the scrollable list (Enter or **double-click**), any number of them. Add/`e`dit them in a **multi-line command editor** built to be easier than a shell: **paste** support (multi-line), **Ctrl+Space** autocomplete (ROS subcommands + topic/node/service/package names), cursor editing, **Ctrl+S** to save. Persisted per-container to `~/.rdashrc`.
-- **Selective Hz measurement** (`h` cycles `all`/`selected`/`off`): only subscribe to the topics you're looking at (or none), cutting the observer-effect bandwidth of measuring every topic. High-rate topics are counted via raw (non-deserialized) subscriptions.
-- **Container / domain awareness**: an env bar shows host, ROS version, `ROS_DOMAIN_ID`, and RMW. `D` switches `ROS_DOMAIN_ID` and reconnects — to peek at another container's ROS2 graph reachable over DDS.
-- **Control actions** (`x` on a selection): **publish to a topic via a field form** — the message type's fields are listed (`linear.x`, `angular.z`, …) so you fill values instead of hand-typing YAML; kill node (ROS1 `rosnode kill`; ROS2 SIGINT by node→PID, best-effort); **call a service with a request argument** (YAML/JSON, e.g. Gazebo `spawn_entity` / `set_entity_state`); set param — the rqt-style *control* half.
-- **ROS1 & ROS2 auto-detected** from the environment.
-- **Keyboard + mouse**: hover highlight on tree rows and footer buttons, click to select/expand, **double-click a bookmark to run it**, wheel to scroll.
-- **Flicker-free rendering**: a line-diff writer repaints only the lines that changed, so high-rate values (and hover) update at the target rate without the whole screen blinking — even on slower terminals (WSL / Windows Terminal). Configurable **max render rate**.
+**원격 rosbridge 접속** — `D` 를 누르면 ROS 환경 창에 rosbridge 대상 입력칸이 나온다. 웹과 똑같이 IP 만 넣고 Enter 하면 `ws://IP:9090` 으로 저장되고 백엔드가 새 대상으로 재시작된다. 비우고 Enter 하면 로컬로 돌아간다. 현재 대상은 상단 환경 줄에 `rb:<host:port>` 로 표시된다. 시작할 때부터 지정하려면 `RDASH_ROSBRIDGE_URL=ws://IP:9090 npm start`.
 
-## Web UI (localhost)
+ROS 가 없는 PC(Windows 등)에서 띄울 땐 `RDASH_NO_AUTOPIP=1` 로 파이썬 패키지 자동 설치를 끈다.
 
-Some things read better as a real GUI than in a terminal — the **node graph**,
-**plots**, and **sensor views** especially. RDash ships a web server that reuses
-the exact same telemetry/echo pipeline and serves a full browser UI on
-localhost. **`npm start` boots both** the TUI and the web server together (the
-TUI shows `web:localhost:8080` in its env bar); or run the web alone:
+| 키 | 동작 |
+|---|---|
+| `↑↓` / `j` `k` | 이동 |
+| `Enter` / 클릭 | 펼침 · 선택 |
+| `/` | 트리 퍼지 검색 (`Esc` 해제) |
+| `x` | 선택 항목 동작: 토픽 publish(필드 폼) / 서비스 call / 노드 kill / 파라미터 set |
+| `b` / `1`-`9`,`0` | 북마크 관리 / 바로 실행 |
+| `J` | 작업(Jobs) |
+| `w` | 워치리스트 (여러 토픽 필드 고정) |
+| `F` | 프리플라이트 체크 (`~/.rdash_preflight.json`) |
+| `c` / `n` | 연결(pub/sub) / 노드 그래프 |
+| `t` / `T` / `S` / `O` | TF 트리 / 두 프레임 tf echo / 노드 리소스 / 시스템 개요 |
+| `L` / `v` | 로그 / 진단 |
+| `m` / `Q` / `y` | 메시지 정의 / QoS / 이름 복사(OSC52) |
+| `o` / `V` | 파라미터 튜닝(ROS2) / 라이프사이클(ROS2) |
+| `H` / `K` / `A` | Doctor / Baseline / Trigger 무장 |
+| `W` | Teleop (WASD) |
+| `.` / `X` | 토픽 표시 / 표시 토픽 스냅샷 |
+| `R` / `P` / `B` | rosbag 녹화 / 재생 / A·B 비교 |
+| `h` | Hz 측정 모드: all / selected / off |
+| `D` | ROS 환경 보기 · rosbridge 대상 전환 |
+| `Tab` | 트리 숨김 (값 전체폭) |
+| `space` | 값 프리즈 |
+| `[` `]` / `g` `G` / `+` `-` | 값 스크롤 / 맨위·맨아래 / 렌더율 |
+| `?` / `q` | 도움말 / 종료 |
 
-```bash
-npm start          # TUI + web together  (opt out of web: RDASH_NO_WEB=1)
-npm run web        # web only → http://localhost:8080   (RDASH_WEB_PORT to change)
-```
+## 설정 (환경변수)
 
-**Running in a container?** The server binds to `0.0.0.0` (all interfaces) by
-default, so the web UI is reachable **from the host** as long as the port is
-exposed — publish it (`docker run -p 8080:8080 …`) or share the host network
-(`docker run --network host …`, common when the container also talks to ROS).
-Then open `http://<host-ip>:8080`. Lock it to loopback with
-`RDASH_WEB_HOST=127.0.0.1`.
-
-The web UI has **full parity** with the TUI plus GUI-native views:
-
-- **▦ Docking workspace** — a tiled multi-panel layout (mosaic) for seeing
-  several views at once, in the spirit of Foxglove's panel workspace. Split any
-  panel **right** (⇥) or **down** (⤓), drag the dividers to resize, close (✕) or
-  add (＋) panels. Seven panel types — **Topic graph** (force layout), **Plot**
-  (live, click-toggle legend), **Raw messages**, **Image** (annotation +
-  calibration overlays), **3D scene** (cloud + markers + TF), **Diagnostics**,
-  **Log** — each with its own topic selector; the **layout persists** to
-  localStorage. Opened from the header (▦ 워크스페이스).
-- **Light / dark theme** toggle (🌙/☀️, persisted; follows the system setting by
-  default), plus corner **toasts** (성공/경고/오류) and a live **connection
-  badge** (연결됨 / 재연결 중 / 끊김).
-- **Node graph (rqt_graph-class).** Two modes via a toolbar toggle: **노드**
-  (nodes joined by topic edges, labeled with topic count, weighted thickness)
-  and **노드+토픽** (bipartite — topics become their own ellipse nodes with
-  publish/subscribe edges). **Services** render as blue diamonds from their
-  server node, **actions** as purple hexagons (server→action→client, derived
-  from `/_action/*`). A filter bar toggles services / actions / tf / debug
-  (`/rosout`,`/parameter_events`) / dead-end topics / **CLI-tool nodes** (the
-  anonymous `rostopic_*`, `ros_tui_*`, `_ros2cli_*`, `rqt_*` helper nodes that
-  `echo`/`pub`/`hz` spawn — hidden by default). Collision-free force layout with
-  a live **node-spacing slider** (spread the graph out when edges crowd);
-  **wheel-zoom / drag-pan**, drag nodes, click to focus, hover an edge for the
-  topic list.
-- **Sidebar tree & inspector.** The left pane is a **collapsible TUI-style
-  tree** (names split on `/` into foldable groups, with an **anonymous-item
-  filter** to hide the CLI/tool nodes/services). Clicking **any** kind updates
-  the right **inspector**: a topic shows `rostopic info` (**type · Hz ·
-  publishers · subscribers**) live without opening a modal, a node its
-  publications/subscriptions, a service its server node, and a **parameter its
-  current value** on select. Publisher/subscriber entries are clickable to jump.
-- **PlotLab** (📈) — a **PlotJuggler-class** multi-plot dashboard: multiple
-  synchronized plots (세로 / 격자 / 3열, each **drag-resizable** by its ⤡
-  corner, or **pop-out** ⧉ into its own window); curves from **any topic/field**
-  dragged or clicked onto any plot; a **shared time axis + cursor**, wheel-zoom,
-  drag-pan, follow toggle, and a **scrub timeline** (play / 0.25–4× speed) over
-  the buffered history; per-curve **transforms** (원값, **n-th** d/dt, **n-th**
-  ∫dt, |x|, moving-avg), **FFT** spectrum, **XY** phase plots, **custom
-  expression** curves (`c0-c1`, `Math.hypot(c0,c1)`, …), live per-curve
-  statistics, **CSV/PNG export** (⭳ CSV for all curves, ⭳ per-plot PNG), and
-  **rosbag load** (`🗀 bag`) to replay a recorded file on the scrubber. The
-  right-hand quick panel also has a live value view, a small line plot, and a
-  **gauge** (radial dial, auto-ranged).
-- **RDash-unique diagnostics** (things Foxglove/rviz don't do — RDash already
-  has the graph data and shell access):
-  - **🩺 Doctor** (`H`) — one-key health scan of the whole graph: QoS
-    reliability/durability mismatches, stale topics, publisher-with-no-subscriber
-    dead-ends, subscriber-with-no-publisher, ranked by severity, click to jump.
-  - **📌 Baseline** (`K`) — save a "known-good" profile (nodes / topic Hz /
-    services) and diff live against it: a vanished node, a disappeared topic, or
-    a collapsed publish rate are flagged. Shared file with the TUI.
-  - **🔴 Trigger** (`A`) — arm a watchdog that auto-captures (snapshot / rosbag)
-    when a condition fires (graph ERROR, `/diagnostics` ERROR), with cooldown.
-  - **📊 Node processes** (`P`) — live per-node CPU% / RSS / thread count
-    (CPU-sorted) with per-node kill / restart.
-- **🎮 Teleop** — a D-pad + WASD/arrow keys with adjustable linear/angular
-  speed (a persistent `-r 10 Hz` publisher). **Target presets** set the topic +
-  message + speed in one pick — **turtlesim** (`/turtle1/cmd_vel`),
-  **diff-drive** (`/cmd_vel`), **MAVROS velocity**
-  (`/mavros/setpoint_velocity/cmd_vel`, `TwistStamped`), or custom; the cmd_vel
-  topic is **auto-detected** and the message type (`Twist` / `TwistStamped`)
-  chosen automatically.
-- **Sensor views** (all rendered locally — no external tiles, no WebGL libs):
-  - **🗺 Map** — NavSatFix lat/lon track.
-  - **🖼 Image** — Compressed/Image camera stream with **annotation overlays**
-    (`vision_msgs/Detection2D(Array)` boxes + labels/score, `foxglove_msgs/
-    ImageAnnotations` points/circles/texts) and **calibration overlays**
-    (`sensor_msgs/CameraInfo` principal-point reticle + `K`/`D` readout).
-    **Wheel-zoom / drag-pan** with a **pixel (x,y)+rgb** readout.
-  - **🧊 3D scene (RViz-class)** — a full raw-**WebGL** scene (no three.js) with
-    an RViz-style **Displays panel**: add **multiple** topics at once, **checkbox
-    show/hide** (unchecking unsubscribes to save bandwidth), remove, and a **＋
-    add-topic** picker; built-in **Grid / Axes / TF / RobotModel** toggles.
-    Renders:
-    - **PointCloud2** with **color modes** — height (z) / **intensity** (jet) /
-      **RGB** / flat, auto-detected from the cloud's fields.
-    - **`Marker(Array)`** (cube / sphere / cylinder / arrow / line / points /
-      text / **triangle-list mesh**, with transparency), TF-placed by `frame_id`.
-    - **TF frames** (RGB axes + labels).
-    - **Native message displays** — **LaserScan**, **Path**, **Odometry**,
-      **PoseArray**, **PoseStamped**, **PointStamped**, **OccupancyGrid**, and
-      **PX4 `VehicleOdometry`** — Odometry / VehicleOdometry also draw an
-      accumulated **trajectory trail** (via `geom_bridge.py`).
-    - **RobotModel** — parses `robot_description` **URDF** (box/cylinder/sphere
-      primitives + **STL / OBJ / DAE (Collada) meshes**, Collada `up_axis`
-      converted to Z-up), each link posed by its TF frame.
-    - **6-DOF interactive markers** — subscribes an `InteractiveMarker` server
-      (`<topic>/update`), renders the visual + an RViz-style **gizmo** (3 move
-      arrows + 3 rotate rings); **drag** a handle to translate/rotate and the new
-      pose is published back as `InteractiveMarkerFeedback` to `<topic>/feedback`
-      — the full RViz round-trip (via `im_bridge.py`, bidirectional over the WS).
-    - **Camera image 3D projection** — a camera stream projected as a
-      FOV-sized textured quad at its optical `CameraInfo` frame (adjustable
-      distance), so the image sits in the scene like RViz's Camera display.
-    - **Interactive tools** (🛠) — ground-plane click picking: **Publish Point**
-      (`/clicked_point`), **Nav Goal** (`/goal_pose`), **Pose Estimate**
-      (`/initialpose`), and **Measure** (distance between two points).
-    - **Camera / frame** — **Fixed Frame** (re-anchor everything to a chosen
-      frame), **Follow** (camera tracks a TF frame), **Orthographic** projection,
-      orbit / zoom / pan, **camera presets** (Top / Front / Side / Iso).
-    - **FPS + point count** overlay and a **wallclock + simulation-time**
-      readout (`/clock`).
-    - **Point-cloud LOD** (selectable ⚙): server uniform decimation
-      (`RDASH_CLOUD_MAXN`) + **shader distance LOD** (keep a `lodDist/depth`
-      fraction past a threshold via a stable hash, survivors enlarged), with
-      **Off / Distance / Adaptive** (auto-tune to hold a target FPS) modes, a
-      max-points cap, and round/square points. Targets **200k points/s** (Iris
-      360 lidar class) without frame drops.
-    - **On-demand rendering** — when the scene is static (no cloud streaming,
-      drag, or follow) the GL draw is skipped, so a markers/URDF-only view costs
-      near-zero GPU; the cloud-streaming path renders every frame so FPS and
-      adaptive LOD stay accurate.
-- **State Transitions** — a topic field's value changes as a colored timeline
-  (enums / booleans / modes). Plus the full TUI toolset: publish form (skeleton
-  prefill), service call, QoS, msg def, connections, TF tree, param table,
-  lifecycle, `/rosout` log, `/diagnostics`, system overview, bookmarks, and a
-  server-side jobs registry.
-
-### Backends (`RDASH_BACKEND`)
-
-RDash talks to ROS through a swappable **`RosBackend`** interface, so the same UI
-runs against different data sources:
-
-| backend | how it talks to ROS | when |
+| 변수 | 기본값 | 의미 |
 |---|---|---|
-| `cli` | shells out to `ros2`/`ros` CLI (one process per stream) | local, simplest |
-| `rcl` | a single **rclpy** node multiplexes all topic echoes into one process | local, many plotted topics — kills the `ros2 topic echo` process fan-out |
-| `rosbridge` | a **websocket** client to `rosbridge_suite` (`RDASH_ROSBRIDGE_URL=ws://robot:9090`) | remote robot, no local ROS install |
+| `RDASH_ROSBRIDGE_URL` | `ws://localhost:9090` (ROS2 `9091`) | rosbridge 주소. UI 에서 저장한 `~/.rdash_rosbridge_url` 이 더 우선 |
+| `RDASH_WEB_PORT` | `8080` (ROS2 `8082`) | 웹 포트 |
+| `RDASH_WEB_HOST` | `0.0.0.0` | 바인딩 주소. `127.0.0.1` 이면 로컬 전용 |
+| `ROS_VER` | 자동 | `1` 또는 `2` 강제 |
+| `RDASH_CLOUD_MAXN` | `30000` | 3D 클라우드 프레임당 최대 점 수 |
+| `RDASH_API` | — | TUI 가 백엔드를 띄우지 않고 이미 떠 있는 백엔드(`http://host:8080`)에 붙음 |
+| `RDASH_NO_AUTOPIP` | `0` | `1` 이면 시작 시 파이썬 패키지 자동 설치 안 함 |
+| `RDASH_NO_AUTOAPT` | `0` | `1` 이면 rosbridge_server apt 자동 설치 안 함 |
+| `RDASH_LOOPBACK` | `1` | `0` 이면 ROS1 `ROS_IP=127.0.0.1` 강제를 끔 (다른 머신의 마스터에 붙을 때) |
+| `RENDER_HZ` | `10` | TUI 최대 화면 갱신율 |
+| `RDASH_MOUSE` / `RDASH_DIFF` | `1` | TUI 마우스 / 줄 단위 차등 렌더 |
 
-**The TUI and the browser are both clients of the same backend.** Neither talks to
-ROS. `RDASH_BACKEND` is the *backend's* choice and the only knob:
+컨테이너 안에서 돌리면 `-p 8080:8080` 이나 `--network host` 로 포트를 열어야 호스트에서 접속된다.
+
+## 파일
+
+- `~/.rdash_rosbridge_url` — 저장된 rosbridge 대상
+- `~/.rdashrc` — 북마크
+- `~/.rdash_baseline.json` — Baseline 프로파일 (웹·TUI 공유)
+- `~/.rdash_preflight.json` — 프리플라이트 체크 정의
+- `~/.rdash_session.json` — TUI 세션 상태
+- `rdash_rec_<ts>` / `rdash_snapshot_<ts>.txt` — rosbag 녹화 / 값 스냅샷
+
+## 구조
 
 ```
 frontend/tui/  ─┐
-                ├─ HTTP + /ws ─▶ backend/ ─▶ RDASH_BACKEND ─▶ ROS
+                ├─ HTTP + /ws ─▶ backend/ ─▶ rosbridge ─▶ ROS
 frontend/web/  ─┘
 ```
 
-The browser link is a single multiplexed **WebSocket** (`/ws`) — text frames for
-streams, **binary** frames for point clouds (float32 `xyzc`, no base64) — so the
-render bottleneck is only the viewer's GPU, not the transport.
-
-`npm start` launches the TUI, which spawns the backend and waits for it. Point the
-TUI at an already-running (or remote) backend with `RDASH_API=http://host:8080` —
-then it does not spawn one.
-
-The contract is written down in **`API.md`**. Sensor streams use python bridges under
-`backend/python/` (`scene3d/`, `image/`, `stream/`, `tools/`) — each works under
-**ROS1 (rospy) or ROS2 (rclpy)** via a `ros_compat` shim; every path is declared
-in `shared/paths.js` and each is overridable by env (`RDASH_IMG_BRIDGE`, …).
-
-Because the backend owns ROS, a few things moved:
-
-- **Jobs** (rosbag record/play, action goals, bookmarked commands) live on the
-  backend. They outlive the TUI and the TUI and browser see the same list.
-- **`ROS_DOMAIN_ID` / `ROS_MASTER_URI`** belong to the backend's environment. The TUI's
-  `D` key now *shows* them (`GET /api/env`) instead of changing them.
-- **The matplotlib plotter was removed from the TUI** — the browser's PlotLab covers
-  it, and `matplotlib` is no longer a dependency.
-
-### Repo layout
+웹과 TUI 는 둘 다 백엔드 API(`API.md`)의 클라이언트이고, ROS 에 붙는 건 백엔드 하나다. 브라우저 연결은 `/ws` 하나로 다중화되며, 포인트클라우드는 바이너리 프레임(float32 `xyzc`)으로 보낸다.
 
 ```
-index.js       TUI entry — spawns the backend, waits for it, then renders
-shared/        used by BOTH the TUI and the backend — ROS command builders,
-               rosbridge client, paths.js (the only place python paths are written)
-backend/       the backend (node backend/server.js) + python/ bridges by function
-frontend/tui/  React Ink TUI     — talks only to the API (lib/api.js)
-frontend/web/  browser           — native ES modules, no bundler, no build step
-API.md         the contract both front ends are written against
+index.js       TUI 진입점 — 백엔드를 띄우고 응답을 기다린 뒤 렌더
+shared/        TUI·백엔드 공용 — ROS 명령 빌더, rosbridge 클라이언트, 포트·경로
+backend/       백엔드(node backend/server.js) + python/ 센서 브리지
+frontend/tui/  React Ink TUI
+frontend/web/  브라우저 UI — 네이티브 ES 모듈, 빌드 단계 없음
 ```
 
-See **ARCHITECTURE.md** for the full map, the rosbridge telemetry design (and why
-it must not be "simplified"), and the verification commands.
+자세한 구조와 검증 방법은 `ARCHITECTURE.md`.
 
-## Requirements
-- **Node.js ≥ 18**
-- A shell where **ROS works** (`rostopic`/`rospy` for ROS1, or `ros2` for ROS2) — i.e. run it after `source`-ing your ROS setup. RDash inherits that environment; it knows nothing about how ROS is deployed (native, Docker, …).
-- **Python plot deps** (`numpy` / `matplotlib` / `PyYAML`, see `requirements.txt`): **auto-installed on first run** if missing (the install log shows, then press Enter to start). Opt out with `RDASH_NO_AUTOPIP=1` and install manually with `pip install -r requirements.txt`.
-- **Per-feature (optional):**
-  - Plotting (`p`): the Python deps above, plus a display for the window (the **web** PlotLab needs neither — it renders in the browser).
-  - rosbag (`R`/`P`): `ros2 bag` / `rosbag` on `PATH`.
-  - Bandwidth / resource monitor: standard `ros2 topic bw` / `rostopic bw`, `ps`, `/proc`.
-  - Web is **zero-extra-dep** on the `cli` backend (uses Node's built-ins). `RDASH_BACKEND=rcl` uses ROS2's bundled `rclpy` (no build); the web camera/pointcloud/bag panels use `rclpy` / `rosbag2_py`. `RDASH_BACKEND=rosbridge` needs `rosbridge_suite` running on the robot, nothing extra locally.
-
-## Install
-```bash
-npm install
-```
-
-## Usage
-Run it in a ROS-sourced shell:
-```bash
-# ROS1
-source /opt/ros/noetic/setup.bash
-npm start                 # TUI + web (http://localhost:8080); web off with RDASH_NO_WEB=1
-
-# ROS2
-source /opt/ros/humble/setup.bash
-node index.js             # TUI only (npm start also launches the web server)
-```
-
-### Navigation
-| Key / Mouse | Action |
-|---|---|
-| `↑↓` / `j` `k` | move selection |
-| `Enter` / click | expand folder / select item |
-| `/` | fuzzy-search the tree (`Esc` clears) |
-| `x` | control the selection: **publish to topic (field form)** / call service / kill node / set param |
-| `p` | plot the selected topic (matplotlib: raw / n-th d·∫ / FFT / XY+regression / 3D) |
-| `b` / `1`-`9`,`0` | bookmarks: open manager / run bookmark by shortcut (Enter or double-click in the list; `a` add, `e` edit) |
-| `J` | jobs manager (view output / kill spawned processes) |
-| `w` | watch list (pin fields from several topics) |
-| `F` | preflight / health check (✓/✗ vs `~/.rdash_preflight.json`) |
-| `c` / `n` | connections (pub/sub) / **node graph (topology)** |
-| `t` / `T` / `S` / `O` | TF tree / tf echo (two frames) / node resource monitor / **system overview (ROS htop)** |
-| `L` / `v` | **log viewer (/rosout)** / **diagnostics (/diagnostics)** |
-| `m` / `Q` / `y` | **message definition** / **QoS inspect** / copy name (clipboard) |
-| `o` / `V` | **param tuning panel** (ROS2 node) / **lifecycle** transition (ROS2 node) |
-| `H` / `K` / `A` | **🩺 Doctor** (graph health scan) / **📌 Baseline** (regression diff) / **🔴 Trigger** arm (auto-capture on ERROR) |
-| `W` | **🎮 Teleop** — drive with WASD (publishes `geometry_msgs/Twist`) |
-| `.` / `X` | mark topic (multi-select) / **snapshot** marked topics to a file |
-| `R` / `P` / `B` | rosbag record toggle (marked topics if any) / play (path) / A·B compare |
-| `h` | cycle Hz measurement: all / selected / off |
-| `D` | switch `ROS_DOMAIN_ID` (view another container's graph) |
-| `Tab` | hide/show the tree (value pane full width) |
-| `?` | help overlay (all shortcuts) |
-| `space` | freeze / unfreeze the value pane |
-| wheel | scroll (over left = tree, over right = value) |
-| `[` `]` | scroll value pane |
-| `g` / `G` | top / bottom |
-| `+` `-` | change max render rate |
-| `q` | quit |
-
-### Config (env)
-| Var | Default | Meaning |
-|---|---|---|
-| `RENDER_HZ` | `10` | max screen refresh rate (1–60) |
-| `ROS_VER` | auto | force `1` or `2` |
-| `ROS_DOMAIN_ID` | inherited | ROS2 domain (also switchable at runtime with `D`) |
-| `RDASH_MOUSE` | `1` | set `0` to disable mouse entirely (for terminals where mouse tracking misbehaves) |
-| `RDASH_DIFF` | `1` | line-diff rendering (flicker-free); set `0` to fall back to Ink's default full-frame writes |
-| `RDASH_NO_AUTOPIP` | `0` | set `1` to skip auto-installing the Python plot deps on startup |
-| `RDASH_PYTHON` | `python3` | interpreter used for telemetry / plot / autocomplete / dep install |
-| `RDASH_WEB_PORT` | `8080` | web server port |
-| `RDASH_WEB_HOST` | `0.0.0.0` | web bind address; `127.0.0.1` to restrict to loopback (host can't reach it) |
-| `RDASH_CLOUD_MAXN` | `30000` | max points per cloud frame sent to the browser (uniform decimation past this). Clouds are subscribed over rosbridge: `sensor_msgs/PointCloud2` and `livox_ros_driver2/CustomMsg` |
-| `RDASH_NO_WEB` | `0` | set `1` so `npm start` launches the TUI **without** the companion web server |
-| `RDASH_BACKEND` | `rosbridge` (web) | data source: `cli` / `rcl` (single rclpy echo mux) / `rosbridge` (websocket) |
-| `RDASH_TUI_BACKEND` | `cli` | TUI's backend, independent of the web's |
-| `RDASH_WEB_BACKEND` | `rosbridge` | web's backend, independent of the TUI's |
-| `RDASH_ROSBRIDGE_URL` | `ws://localhost:9090` | rosbridge endpoint when the backend is `rosbridge` |
-| `RDASH_TELEM` | — | override the telemetry script (web); `RDASH_IMG_BRIDGE`/`RDASH_BAG_DUMP`/`RDASH_ECHO_MUX`/`RDASH_MARKER_BRIDGE`/`RDASH_TF_DUMP`/`RDASH_IMG_ANN_BRIDGE`/`RDASH_CAMINFO_BRIDGE` override the sensor/echo bridges |
-
-### Files
-- `requirements.txt` — Python plot deps (auto-installed on first run).
-- `~/.rdashrc` — saved command bookmarks (JSON).
-- `~/.rdash_preflight.json` — preflight check definitions, e.g. `{"checks":[{"type":"topic","name":"/livox/imu","minHz":150},{"type":"node","name":"/fast_lio_mapping"}]}`.
-- `~/.rdash_session.json` — restored UI state (expanded folders, watches, mode, last selection).
-- `~/.rdash_baseline.json` — saved "known-good" profile for Baseline/regression (`K` / web 📌), shared by TUI and web.
-- `~/.rdash_history` — command history for the bookmark editor.
-- `rdash_rec_<ts>` / `rdash_snapshot_<ts>.txt` — rosbag recordings (`R`) / value snapshots (`X`).
-
-## Testing
-Provide some ROS data, then run RDash in another shell.
-```bash
-# ROS1 (needs a display for turtlesim)
-bash test/test_turtlesim.sh
-
-# ROS2 (turtlesim if X11 available, else headless demo nodes)
-bash test/test_ros2.sh
-```
-
-### Verifying a change
-
-There is no test runner. Before claiming a change works — especially in
-`frontend/web/`, where a broken module fails **silently** (blank panel, no visible
-stack trace):
+## 테스트
 
 ```bash
-# syntax, everything
+node test/test_cloud.mjs                        # 클라우드 디코더 단위 테스트
+bash test/test_turtlesim.sh                     # ROS1 데모 데이터
+bash test/test_ros2.sh                          # ROS2 데모 데이터
 for f in $(find . -name '*.js' -not -path './node_modules/*'); do node --check "$f"; done
-
-# does the browser module graph resolve? (missing export → SyntaxError at link time)
-node --input-type=module -e "import('./frontend/web/main.js').catch(e => console.log(e.constructor.name + ': ' + e.message))"
-#   "ReferenceError: location is not defined" is the GOOD answer — it linked, then hit a browser global.
-
-# the graph stream: node/service counts must stay STEADY, never oscillate
-curl -sN localhost:8080/events
-
-# prove the UI actually boots (look at the PNG — a blank sidebar means a module threw)
-msedge --headless=new --disable-gpu --screenshot=out.png --virtual-time-budget=12000 http://localhost:8080
 ```
-
-ARCHITECTURE.md has the full list, plus the traps (`pgrep -f` matching its own
-shell, `PYTHONPATH` for the python bridges, `hz: null` ≠ `hz: 0`).
-
-## Notes
-- ROS2 params are per-node (no global param server), so a `params/` category only appears on ROS1.
-- ROS2 CLI graph queries use a background daemon; if the tree is empty, run `ros2 daemon stop && ros2 daemon start`.
 
 ## License
 MIT
