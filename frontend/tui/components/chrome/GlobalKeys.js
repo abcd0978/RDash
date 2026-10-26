@@ -15,7 +15,7 @@ export function GlobalKeys() {
     else if (ch === '/') d.setSearching(true);
     else if (ch === ' ') d.setFrozen((f) => !f);
     else if (ch === 'h') d.cycleHz();
-    else if (ch === 'D') d.setDomainEdit({});   // ROS 환경 표시(읽기 전용)
+    else if (ch === 'D') d.setDomainEdit({});   // ROS 환경 표시 · rosbridge 대상 전환
     else if (ch === 'b') d.setBmOpen({ idx: 0 });
     else if (ch === 'J') d.setJobsOpen({ idx: 0 });      // 실행 중 작업(Jobs)
     else if (ch === 'w') d.setWatchOpen(true);           // 워치리스트

@@ -618,7 +618,7 @@ export function StoreProvider({ children }) {
     setGraphOpen, openGraph, setQosOpen, openQos, setLogOpen, openLog, openMsgDef, copySelection,
     setParamPanel, openParamPanel, setParam, setOverviewOpen, openOverview, setDiagOpen, openDiag,
     setLifeOpen, openLifecycle, runLifecycle, setTeleopOpen, openTeleop, closeTeleop, teleopDrive, teleopStop, setDoctorOpen, openDoctor, setBaselineOpen, openBaseline, saveBaselineNow, toggleTrigger, toggleMark, clearMarks, snapshot,
-    setFilter, setFrozen, setPlotPick, setRateIdx, setStatus, setDomainEdit,
+    setFilter, setFrozen, setPlotPick, setRateIdx, setStatus, setDomainEdit, setEnv,
     setBmOpen, setBmAdd, setInfoView, setBagPlay, setJobsOpen, setHelp, setWatchOpen, setTfEcho, setPreflightOpen, setBagCmp,
     openFieldPicker, addWatch, removeWatch, submitTfEcho, submitBagCompare,
     toggleTree: () => setTreeHidden((v) => !v),
