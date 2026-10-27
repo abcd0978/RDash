@@ -36,7 +36,13 @@ export function leafCount(node) {
 export function badge(it) {
   if (it.kind !== 'topic') return el('span');
   const live = it.hz > 0.1, stale = !live && it.age > 3;
-  return el('span', { class: 'hz ' + (live ? 'live' : stale ? 'stale' : '') }, String(it.hz ?? ''));
+  // 드문드문 오는 토픽(바코드 등)은 Hz 가 늘 0 이라 발행 안 한 것처럼 보인다 — 멈춰 있으면 누적 건수를 보여준다
+  let text = String(it.hz ?? '');
+  const is_idle_with_msgs = !live && it.cnt > 0;
+  if (is_idle_with_msgs) {
+    text = `${it.cnt}건`;
+  }
+  return el('span', { class: 'hz ' + (live ? 'live' : stale ? 'stale' : ''), title: `Hz ${it.hz ?? '—'} · 누적 ${it.cnt ?? '—'}건` }, text);
 }
 
 export function deadMark(it) {

@@ -138,6 +138,7 @@ export async function rbProbe(name, request) {
 const telemClients = new Set();      // 구독 중인 send 콜백들
 let telemIv = null, telemBusy = false;   // telemBusy: in-flight 가드 — 이전 틱이 안 끝났으면 이번 틱은 건너뜀(겹침/순서뒤바뀜 방지)
 let telemCounts = {}, telemLast = {}, telemTrack = new Map();   // Hz 측정 상태(topic → unsub)
+let telemTotal = {};                 // 측정 시작 후 누적 메시지 수 — 드문드문 오는 토픽은 Hz 가 늘 0 이라 이걸로 발행 여부를 본다
 let telemTypes = {};                 // 최근 /rosapi/topics 타입 캐시(measure 변경 시 구독하려면 타입 필요)
 let telemSnapshot = null;            // 마지막 정상 스냅샷 — 신규 클라이언트에게 1초 기다리지 않고 즉시 전달
 let measure = new Set();             // 브라우저가 화면에 보여주는 토픽만(Hz 측정 대상) — POST /api/measure 로 갱신
@@ -148,8 +149,8 @@ export function getTelemSnapshot() { return telemSnapshot; }
 export function setMeasure(topics) { measure = new Set(topics); measureSync(); }
 
 function measureSync() {   // measure 집합에 맞춰 Hz 구독 갱신 — 틱마다 + /api/measure 갱신 시 즉시 호출
-  for (const n of [...telemTrack.keys()]) if (!measure.has(n)) { telemTrack.get(n)(); telemTrack.delete(n); delete telemCounts[n]; delete telemLast[n]; }
-  for (const n of measure) if (!telemTrack.has(n) && telemTypes[n] && rb) { telemCounts[n] = 0; telemTrack.set(n, rb.subscribe(n, telemTypes[n], () => { telemCounts[n] = (telemCounts[n] || 0) + 1; telemLast[n] = Date.now(); })); }
+  for (const n of [...telemTrack.keys()]) if (!measure.has(n)) { telemTrack.get(n)(); telemTrack.delete(n); delete telemCounts[n]; delete telemLast[n]; delete telemTotal[n]; }
+  for (const n of measure) if (!telemTrack.has(n) && telemTypes[n] && rb) { telemCounts[n] = 0; telemTrack.set(n, rb.subscribe(n, telemTypes[n], () => { telemCounts[n] = (telemCounts[n] || 0) + 1; telemTotal[n] = (telemTotal[n] || 0) + 1; telemLast[n] = Date.now(); })); }
 }
 // ── 관찰자 효과 유령 토픽 ────────────────────────────────────────────────────
 // ROS1 마스터는 "발행자든 구독자든 하나라도 있으면" 토픽을 목록에 유지한다. 그런데 rosbridge_suite 는
@@ -237,7 +238,7 @@ export async function rbGraphSnapshot(consume = false) {   // consume: 텔레메
     const hz = measured ? (telemCounts[n] || 0) : null;
     if (measured && consume) telemCounts[n] = 0;
     items.push({
-      p: 'topics' + n, kind: 'topic', name: n, ty: types[n], hz, age: measured && telemLast[n] ? (now - telemLast[n]) / 1000 : null,
+      p: 'topics' + n, kind: 'topic', name: n, ty: types[n], hz, cnt: measured ? (telemTotal[n] || 0) : null, age: measured && telemLast[n] ? (now - telemLast[n]) / 1000 : null,
       pubs: (pubs[n] || []).slice().sort().map((x) => [x, null, null]), subs: (subs[n] || []).slice().sort().map((x) => [x, null, null]),
     });
   });
@@ -287,6 +288,7 @@ export function rbTelemetryCore(send) {
       telemTrack.clear();
       telemCounts = {};
       telemLast = {};
+      telemTotal = {};
       measure.clear();   // 화면에 보는 사람이 없으므로 측정 대상도 비움 — 남아있으면 새 클라이언트 접속 시 아무도 안 보는 토픽까지 재구독됨
     }
   };
@@ -304,6 +306,32 @@ export function rbEcho(res, topic, type) {
   const send = sse(res);
   const off = rbEchoOff(topic, send, type);
   res.on('close', off);
+}
+// 발행 로그 — 발행자가 있는 토픽을 전부 구독해 메시지마다 한 줄({topic, text})을 보낸다. 로그 창이 열려 있을 때만 돈다.
+// 영상·점군처럼 큰 타입은 빼고, 토픽당 PUBLOG_MIN_MS 에 한 줄로 거른다(드문 토픽은 전부 보이고 고속 토픽은 샘플만).
+const PUBLOG_SKIP_TYPE = /Image|PointCloud|LaserScan|OccupancyGrid|CustomMsg|Mesh|MarkerArray/;
+const PUBLOG_SKIP_TOPIC = new Set(['/rosout', '/rosout_agg']);   // 로그 창이 이미 따로 보여준다
+const PUBLOG_MIN_MS = 1000;
+const PUBLOG_MAX_CHARS = 400;
+export function rbPubLogOff(send) {
+  rbEnsure();
+  const subs = new Map(), last = {};
+  const sync = () => {   // 새로 생긴 토픽도 잡도록 스냅샷 주기마다 다시 훑는다
+    const items = (telemSnapshot && telemSnapshot.items) || [];
+    for (const it of items) {
+      if (it.kind !== 'topic' || subs.has(it.name) || !(it.pubs || []).length) continue;
+      if (PUBLOG_SKIP_TOPIC.has(it.name) || PUBLOG_SKIP_TYPE.test(it.ty || '')) continue;
+      subs.set(it.name, rb.subscribe(it.name, it.ty, (msg) => {
+        const now = Date.now();
+        if (now - (last[it.name] || 0) < PUBLOG_MIN_MS) return;
+        last[it.name] = now;
+        send(JSON.stringify({ topic: it.name, text: JSON.stringify(msg).slice(0, PUBLOG_MAX_CHARS) }));
+      }));
+    }
+  };
+  sync();
+  const iv = setInterval(sync, 2000);
+  return () => { clearInterval(iv); for (const off of subs.values()) off(); };
 }
 // 클라우드 스트림(3D) — rosbridge 구독 → 바이너리 프레임(shared/cloud.js). PointCloud2·livox CustomMsg 를 메시지 모양으로 가린다.
 // 보기용이라 throttle_rate 로 5Hz 상한, queue_length 1 로 밀린 프레임은 버린다(프레임당 수 MB JSON).

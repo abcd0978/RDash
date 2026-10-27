@@ -7,14 +7,25 @@ import { state } from '../lib/state.js';
 
 const ROS1_LOG_LEVEL = { 1: 10, 2: 20, 4: 30, 8: 40, 16: 50 };
 
-export function streamView(title, endpoint, parse, klass) {
+// more: 같은 표에 섞어 넣을 추가 스트림 [{ endpoint, parse }] — 로그 창의 토픽 발행 줄
+export function streamView(title, endpoint, parse, klass, more = []) {
   const filterInp = el('input', { placeholder: '필터…', style: 'margin-bottom:6px' });
   const tbl = el('table', { class: 'tbl' }), wrap = el('div', {}, filterInp, tbl);
   openModal(title, wrap);
   const rows = [];
+  let is_render_queued = false;
+  const queueRender = () => {   // 토픽 발행 줄이 초당 수십 개 들어와도 프레임당 한 번만 다시 그린다
+    if (is_render_queued) {
+      return;
+    }
+    is_render_queued = true;
+    requestAnimationFrame(() => { is_render_queued = false; rerender(); });
+  };
   const rerender = () => { const f = filterInp.value.toLowerCase(); tbl.innerHTML = ''; rows.filter((r) => !f || r.text.toLowerCase().includes(f)).slice(-400).forEach((r) => tbl.append(el('tr', { class: 'lrow ' + r.cls }, el('td', {}, r.a), el('td', {}, r.b)))); wrap.scrollTop = wrap.scrollHeight; };
   filterInp.oninput = rerender;
-  setModalSub(openStream(endpoint, (d) => { const blk = JSON.parse(d); for (const r of parse(blk)) { rows.push(r); if (rows.length > 1000) rows.shift(); } rerender(); }));
+  const open = (ep, ps) => openStream(ep, (d) => { const blk = JSON.parse(d); for (const r of ps(blk)) { rows.push(r); if (rows.length > 1000) rows.shift(); } queueRender(); });
+  const subs = [open(endpoint, parse), ...more.map((m) => open(m.endpoint, m.parse))];
+  setModalSub({ close() { subs.forEach((s) => s.close()); } });
 }
 
 export function log() {
@@ -27,7 +38,7 @@ export function log() {
       lvl = n;
     }
     return [{ a: L(lvl), b: (nm ? nm[1].trim() : '?') + ': ' + (ms ? ms[1].replace(/["']\s*$/, '').trim() : ''), cls: C(lvl), text: blk }];
-  });
+  }, undefined, [{ endpoint: '/publog', parse: (p) => [{ a: 'PUB', b: p.topic + ': ' + p.text, cls: 'OK', text: p.topic + ' ' + p.text }] }]);
 }
 
 export function diag() {

@@ -241,7 +241,16 @@ function makeStream(host, cfg, ctx, arg) {
   const tbl = el('div', { class: 'wsstream' });
   host.append(tbl);
   const rows = [];
-  const push = (a, b, cls) => { rows.push({ a, b, cls }); if (rows.length > 500) rows.shift(); rerender(); };
+  let is_render_queued = false;
+  const push = (a, b, cls) => {   // 토픽 발행 줄이 몰려도 프레임당 한 번만 다시 그린다
+    rows.push({ a, b, cls });
+    if (rows.length > 500) rows.shift();
+    if (is_render_queued) {
+      return;
+    }
+    is_render_queued = true;
+    requestAnimationFrame(() => { is_render_queued = false; rerender(); });
+  };
   const rerender = () => { tbl.innerHTML = ''; rows.slice(-300).forEach((r) => tbl.append(el('div', { class: 'wsline ' + r.cls }, el('b', {}, r.a), ' ', r.b))); tbl.scrollTop = tbl.scrollHeight; };
   const s = openStream(arg.ep, (d) => {
     let blk;
@@ -260,7 +269,16 @@ function makeStream(host, cfg, ctx, arg) {
       }
     }
   });
-  return { dispose() { s.close(); } };
+  if (arg.kind !== 'log') {
+    return { dispose() { s.close(); } };
+  }
+  // 로그 패널엔 토픽 발행 줄도 섞는다
+  const pub = openStream('/publog', (d) => {
+    let p;
+    try { p = JSON.parse(d); } catch (_) { return; }
+    push('PUB', p.topic + ': ' + p.text, 'OK');
+  });
+  return { dispose() { s.close(); pub.close(); } };
 }
 
 // ── 패널: 이미지(어노테이션/보정 오버레이) ──

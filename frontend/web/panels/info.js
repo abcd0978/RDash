@@ -50,7 +50,7 @@ export function renderInfo(it) {
   if (it.kind === 'topic') {
     const t = byName(it.name) || it;
     box.append(line('타입', t.ty || '?', 'imono'));
-    box.append(line('Hz', `${t.hz != null ? t.hz : '—'}${t.age != null ? `   · age ${t.age}s` : ''}`, 'imono'));
+    box.append(line('Hz', `${t.hz != null ? t.hz : '—'}${t.age != null ? `   · age ${t.age}s` : ''}${t.cnt != null ? `   · 누적 ${t.cnt}건` : ''}`, 'imono'));
     box.append(list('발행자 Publishers', (t.pubs || []).map(nodeName), '없음', 'node'));
     box.append(list('구독자 Subscribers', (t.subs || []).map(nodeName), '없음', 'node'));
   } else if (it.kind === 'node') {

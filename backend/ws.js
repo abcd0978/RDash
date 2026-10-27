@@ -3,7 +3,7 @@
 import { WebSocketServer } from 'ws';
 import { be } from './ros.js';
 import { pipeLines, pipeRtsp } from './http.js';
-import { rbTelemetryCore, rbEchoOff, rbCloudOff } from './telemetry.js';
+import { rbTelemetryCore, rbEchoOff, rbCloudOff, rbPubLogOff } from './telemetry.js';
 
 export function attachWebSocket(server) {
   const wss = new WebSocketServer({ noServer: true });
@@ -60,6 +60,7 @@ function wsStart(ws, m) {
   if (stream === 'events') off = rbTelemetryCore(txt);
   else if (stream === 'echo') { if (t) off = rbEchoOff(t, txt, params.type); }
   else if (stream === 'rosout' || stream === 'diagnostics') off = rbEchoOff('/' + stream, txt);   // CLI echo 대신 rosbridge — 원격 백엔드엔 ROS CLI 가 없다
+  else if (stream === 'publog') off = rbPubLogOff(txt);   // 로그 창의 토픽 발행 줄
   else if (stream === 'cloudstream') { if (t) off = rbCloudOff(t, bin); }   // rosbridge 구독 → 바이너리(원격 rosbridge 환경엔 파이썬 브리지가 못 돈다)
   else if (map[stream]) map[stream]();
   return {
