@@ -150,7 +150,7 @@ export function setMeasure(topics) { measure = new Set(topics); measureSync(); }
 
 function measureSync() {   // measure 집합에 맞춰 Hz 구독 갱신 — 틱마다 + /api/measure 갱신 시 즉시 호출
   for (const n of [...telemTrack.keys()]) if (!measure.has(n)) { telemTrack.get(n)(); telemTrack.delete(n); delete telemCounts[n]; delete telemLast[n]; delete telemTotal[n]; }
-  for (const n of measure) if (!telemTrack.has(n) && telemTypes[n] && rb) { telemCounts[n] = 0; telemTrack.set(n, rb.subscribe(n, telemTypes[n], () => { telemCounts[n] = (telemCounts[n] || 0) + 1; telemTotal[n] = (telemTotal[n] || 0) + 1; telemLast[n] = Date.now(); })); }
+  for (const n of measure) if (!telemTrack.has(n) && telemTypes[n] && rb) { telemCounts[n] = 0; telemTrack.set(n, rb.subscribe(n, telemTypes[n], (msg) => { telemCounts[n] = (telemCounts[n] || 0) + 1; telemTotal[n] = (telemTotal[n] || 0) + 1; telemLast[n] = Date.now(); recordPub(n, msg); })); }
 }
 // ── 관찰자 효과 유령 토픽 ────────────────────────────────────────────────────
 // ROS1 마스터는 "발행자든 구독자든 하나라도 있으면" 토픽을 목록에 유지한다. 그런데 rosbridge_suite 는
@@ -332,6 +332,33 @@ export function rbPubLogOff(send) {
   sync();
   const iv = setInterval(sync, 2000);
   return () => { clearInterval(iv); for (const off of subs.values()) off(); };
+}
+// 발행 이력 — Hz 측정 구독(트리에 보이는 토픽)이 받은 메시지를 토픽마다 최근 PUBHIST_MAX 개 남긴다.
+// 측정이 끝나도 이력은 지우지 않는다(트리를 접었다 펴도 남게). 백엔드를 재시작하면 사라진다.
+// 메시지 객체를 그대로 쥐고 보낼 때만 직렬화한다 — 고속 토픽마다 매번 stringify 하지 않게. 큰 타입은 남기지 않는다.
+const PUBHIST_MAX = 500;
+const pubHist = new Map();        // topic → [{ t, msg }]
+const pubHistViews = new Map();   // topic → Set(send) — 이력 창이 열린 토픽에 새 항목을 바로 보낸다
+const histLine = (e) => JSON.stringify({ t: e.t, text: JSON.stringify(e.msg) });
+function recordPub(topic, msg) {
+  if (PUBLOG_SKIP_TYPE.test(telemTypes[topic] || '')) return;
+  const e = { t: Date.now(), msg };
+  let h = pubHist.get(topic);
+  if (!h) { h = []; pubHist.set(topic, h); }
+  h.push(e);
+  if (h.length > PUBHIST_MAX) h.shift();
+  for (const send of pubHistViews.get(topic) || []) send(histLine(e));
+}
+// 이력 창 — 쌓인 이력을 먼저 보내고 이후 새 메시지를 실시간으로. 트리에 안 보여 측정 중이 아닌 토픽은 창이 열린 동안 직접 구독해 남긴다.
+export function rbPubHistOff(topic, send) {
+  rbEnsure();
+  for (const e of pubHist.get(topic) || []) send(histLine(e));
+  let views = pubHistViews.get(topic);
+  if (!views) { views = new Set(); pubHistViews.set(topic, views); }
+  views.add(send);
+  let off = () => {};
+  rbTopicType(topic).then((t) => { off = rb.subscribe(topic, t, (msg) => { if (!telemTrack.has(topic)) recordPub(topic, msg); }); });
+  return () => { off(); views.delete(send); };
 }
 // 클라우드 스트림(3D) — rosbridge 구독 → 바이너리 프레임(shared/cloud.js). PointCloud2·livox CustomMsg 를 메시지 모양으로 가린다.
 // 보기용이라 throttle_rate 로 5Hz 상한, queue_length 1 로 밀린 프레임은 버린다(프레임당 수 MB JSON).

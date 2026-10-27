@@ -3,7 +3,7 @@
 
 import { msgdef, qos, connections, tftree, setparam, params, lifecycle, states } from './inspect.js';
 import { publish, service, action, teleop } from './actions.js';
-import { log, diag } from './streams.js';
+import { log, diag, pubhist } from './streams.js';
 import { doctor, baseline, trigger, procmon, overview } from './health.js';
 import { cloud } from './scene3d.js';
 import { image } from './image.js';
@@ -19,7 +19,7 @@ export const Views = {
   msgdef, qos, connections, tftree,
   publish, service, action,
   setparam, params, lifecycle,
-  log, diag,
+  log, diag, pubhist,
   doctor, baseline, trigger, procmon, overview,
   cloud, image, map, turtle, plotlab,
   teleop, states,

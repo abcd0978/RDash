@@ -41,6 +41,12 @@ export function log() {
   }, undefined, [{ endpoint: '/publog', parse: (p) => [{ a: 'PUB', b: p.topic + ': ' + p.text, cls: 'OK', text: p.topic + ' ' + p.text }] }]);
 }
 
+// 토픽 발행 이력 — 백엔드가 쌓아 둔 이력을 먼저 받고, 이후 발행되는 메시지가 실시간으로 붙는다
+export function pubhist(it) {
+  const hms = (t) => { const d = new Date(t); return d.toLocaleTimeString('ko-KR', { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0'); };
+  streamView('🕘 발행 이력 ' + it.name, '/pubhist?topic=' + encodeURIComponent(it.name), (e) => [{ a: hms(e.t), b: e.text, cls: 'OK', text: e.text }]);
+}
+
 export function diag() {
   const LV = ['OK', 'WARN', 'ERROR', 'STALE'];
   streamView('🩺 진단 /diagnostics', '/diagnostics', (blk) => {

@@ -163,6 +163,7 @@ export function renderValActs() {
   if (it.kind === 'topic') {
     add('publish', () => Views.publish(it));
     add('states', () => Views.states(it));
+    add('pub history', () => Views.pubhist(it));
     if ((it.ty || '').includes('NavSatFix')) add('🗺 map', () => Views.map(it));
     if ((it.ty || '').includes('Pose2D')) add('🐢 turtle', () => Views.turtle(it));
     if ((it.ty || '').includes('CompressedImage') || (it.ty || '').includes('sensor_msgs/msg/Image')) add('🖼 image', () => Views.image(it));
