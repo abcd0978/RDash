@@ -13,10 +13,18 @@
           --cyan:#0e8393; --green:#2f9e50; --yellow:#a9790a; --red:#cf3a3a; --blue:#3a63c0; --mag:#9647ab; }
   * { box-sizing:border-box; }
   body { margin:0; font:13px/1.45 ui-monospace,Menlo,Consolas,monospace; background:var(--bg); color:var(--fg); height:100vh; overflow:hidden; }
-  #app { display:grid; grid-template-columns:260px 1fr 340px; grid-template-rows:auto 1fr; height:100vh; }
-  header { grid-column:1/4; display:flex; align-items:center; gap:8px; min-height:36px; padding:4px 10px; background:var(--panel); border-bottom:1px solid var(--line); }
+  #app { display:grid; grid-template-columns:260px 1fr 340px; grid-template-rows:28px 1fr; height:100vh; }
+  ::-webkit-scrollbar { width:6px; height:6px; background:transparent; }
+  ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:rgba(128,128,128,.3); border-radius:3px; }
+  ::-webkit-scrollbar-thumb:hover { background:rgba(128,128,128,.55); }
+  @supports not selector(::-webkit-scrollbar) { * { scrollbar-width:thin; scrollbar-color:rgba(128,128,128,.3) transparent; } }
+  header { grid-column:1/4; display:flex; align-items:center; gap:8px; height:28px; padding:0 10px; overflow:hidden; white-space:nowrap; background:var(--panel); border-bottom:1px solid var(--line); }
+  header > * { flex-shrink:0; }
   header b { color:var(--cyan); } header .s { color:var(--dim); white-space:nowrap; }
-  header .tb { flex:1; min-width:0; display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; }
+  header .tb { flex:1 1 0; min-width:0; display:flex; gap:5px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; }
+  header .tb::-webkit-scrollbar { display:none; }
+  header .tb > :first-child { margin-left:auto; }
   header button { background:var(--btn); color:var(--fg); border:1px solid var(--line); border-radius:4px; padding:2px 7px; cursor:pointer; font:inherit; font-size:12px; white-space:nowrap; }
   header button:hover { border-color:var(--cyan); color:var(--cyan); }
   .connbadge { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--dim); white-space:nowrap; }
